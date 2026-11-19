@@ -1,0 +1,20 @@
+[package]
+name = "idler"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+macros = { path = "macros" }
+bytemuck = "1.25.2"
+educe = "0.8.1"
+env_logger = "0.11.11"
+log = "0.4.34"
+parlance = { version = "0.1.1", features = ["bytemuck"] }
+parley = "0.12.0"
+pollster = "1.0.1"
+skrifa = "0.49.0"
+vello = "0.11.0"
+wgpu = "30.0.1"
+winit = "0.30.13"
+num-traits = "0.2.19"
+
