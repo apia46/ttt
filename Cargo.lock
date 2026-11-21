@@ -951,6 +951,7 @@ dependencies = [
  "log",
  "macros",
  "num-traits",
+ "num_enum",
  "parlance",
  "parley",
  "pollster",

@@ -6,7 +6,7 @@ use crate::render::Renderer;
 use crate::state::State;
 
 mod util;
-mod num;
+mod board;
 
 mod app;
 mod window;
@@ -14,8 +14,6 @@ mod window;
 mod render;
 mod input;
 mod state;
-
-mod hover;
 
 struct Game {
     window: Window,

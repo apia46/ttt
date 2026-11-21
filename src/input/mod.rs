@@ -4,7 +4,7 @@ use educe::Educe;
 use vello::kurbo::Vec2;
 use winit::{event::{ElementState, KeyEvent, MouseButton}, keyboard::{KeyCode, PhysicalKey}};
 
-use crate::{hover, window::Window};
+use crate::window::Window;
 use crate::render::camera::ScreenPoint;
 use crate::state::State;
 
@@ -25,11 +25,9 @@ pub fn mouse_moved(to:ScreenPoint, state:&mut State) {
     let distance = to.to_vec2() - from.to_vec2();
     state.input_state.user_state.mouse_position = to;
     if state.input_state.user_state.camera_drag { state.render_state.camera.drag_input(distance); }
-    crate::hover::mouse_moved(state);
 }
 
 pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State) {
-    hover::mouse_input(button_state, mouse_button, state);
     let response = state.input_state.mouse_input(button_state, mouse_button);
 
     let user_state = &mut state.input_state.user_state;

@@ -40,7 +40,7 @@ impl ApplicationHandler for AppHandler {
         match (event, &mut self.game) {
             (WindowEvent::Focused(true), Some(game)) if let Some(refresh_rate) = game.window.get_refresh_rate() => {
                 // i cant figure out a better place to put this
-                game.state.render_state.renderer_state.refresh_rate = refresh_rate;
+                game.state.render_state.refresh_rate = refresh_rate;
             },
             (WindowEvent::CloseRequested, _) => event_loop.exit(),
             (WindowEvent::Resized(size), Some(game)) => {
@@ -65,7 +65,7 @@ impl ApplicationHandler for AppHandler {
                 input::mouse_input(state, button, &mut game.state);
             },
             (WindowEvent::RedrawRequested, Some(game)) => {
-                game.window.render(|w| game.renderer.draw_scene(&game.state.render_state, w, &game.state.hover_state));
+                game.window.render(|w| game.renderer.draw_scene(&game.state.render_state, &game.state.board_state, w));
             },
             _ => {},
         }
@@ -74,13 +74,9 @@ impl ApplicationHandler for AppHandler {
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         let Some(game) = &mut self.game else { return; };
 
-        if let Some(delta_time) = tick(&game.state.start_time, &mut game.state.previous_tick, &Duration::from_millis(50)) {
-            game.state.update(&mut game.renderer, delta_time);
-        }
-
-        let renderer_state = &mut game.state.render_state.renderer_state;
-        if let Some(delta_time) = tick(&game.state.start_time, &mut renderer_state.previous_frame, &renderer_state.refresh_rate) {
-            game.state.render_state.renderer_state.delta_time = delta_time;
+        let render_state = &mut game.state.render_state;
+        if let Some(delta_time) = tick(&game.state.start_time, &mut render_state.previous_frame, &render_state.refresh_rate) {
+            game.state.render_state.delta_time = delta_time;
             game.state.process(&mut game.renderer, delta_time);
             game.window.request_redraw();
         }
