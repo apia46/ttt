@@ -1,7 +1,7 @@
 use educe::Educe;
 use vello::kurbo::{Affine, Point, Vec2};
 
-use crate::{input::UserState, util::Lerp, window::Window};
+use crate::{input::InputState, util::Lerp, window::Window};
 
 const CAMERA_SPEED:f64 = 30000.;
 const VELOCITY_DECAY:f64 = 1.5e-6;
@@ -73,16 +73,16 @@ impl Camera {
         self.pos = self.default_pos(window);
     }
 
-    pub fn process(&mut self, user_state:&UserState, delta_time:f64) {
+    pub fn process(&mut self, input_state:&InputState, delta_time:f64) {
         let adjusted_decay = VELOCITY_DECAY.powf(delta_time);
 
-        if user_state.keyboard_input_direction() != Vec2::ZERO { self.cancel_homing(); };
+        if input_state.keyboard_input_direction() != Vec2::ZERO { self.cancel_homing(); };
 
         let old_pos = self.pos;
 
         match &mut self.state {
             CameraState::Normal(state) => {
-                state.velocity += user_state.keyboard_input_direction() * CAMERA_SPEED * self.scale * delta_time;
+                state.velocity += input_state.keyboard_input_direction() * CAMERA_SPEED * self.scale * delta_time;
                 let new_scale = (1.-adjusted_decay).lerp(self.scale, state.target_scale);
                 // zoom correction: the mouse should be at the same world position before and after the zoom
                 // mouse * scale_i + pos_i = mouse * scale_f + pos_f
@@ -119,7 +119,7 @@ impl Camera {
         let Some(state) = self.cancel_homing() else { return; };
         state.zoom_point = mouse_position;
         state.target_scale *= 2_f64.powf(amount*-0.02);
-        state.target_scale = state.target_scale.clamp(0.25, 16.);
+        state.target_scale = state.target_scale.clamp(0.001953125, 1.);
     }
 
     pub fn drag_input(&mut self, distance:ScreenVec2) {

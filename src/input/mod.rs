@@ -4,48 +4,51 @@ use educe::Educe;
 use vello::kurbo::Vec2;
 use winit::{event::{ElementState, KeyEvent, MouseButton}, keyboard::{KeyCode, PhysicalKey}};
 
-use crate::window::Window;
+use crate::{board::Position, window::Window};
 use crate::render::camera::ScreenPoint;
 use crate::state::State;
 
-mod state;
-
-pub use state::InputState;
-
 #[derive(Educe)]
 #[educe(Default)]
-pub struct UserState {
+pub struct InputState {
     pub mouse_position: ScreenPoint,
+    pub mouse_board_position: Option<Position>,
     pub camera_drag: bool,
     pub held_keys: HashSet<KeyCode>,
 }
 
 pub fn mouse_moved(to:ScreenPoint, state:&mut State) {
-    let from = state.input_state.user_state.mouse_position;
+    let from = state.input_state.mouse_position;
     let distance = to.to_vec2() - from.to_vec2();
-    state.input_state.user_state.mouse_position = to;
-    if state.input_state.user_state.camera_drag { state.render_state.camera.drag_input(distance); }
+    state.input_state.mouse_position = to;
+    let screen_position = state.render_state.camera.point_to_world(state.input_state.mouse_position);
+    state.input_state.mouse_board_position = Position::from_vec2_visible(screen_position.to_vec2() / crate::board::BOARD_SIZE + Vec2::new(0.5, 0.5), &state.board_state.board);
+    if state.input_state.camera_drag { state.render_state.camera.drag_input(distance); }
 }
 
 pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State) {
-    let response = state.input_state.mouse_input(button_state, mouse_button);
-
-    let user_state = &mut state.input_state.user_state;
-    user_state.camera_drag = match (button_state, mouse_button, response.hovered) {
-        (ElementState::Pressed, MouseButton::Right, false) => true,
-        (ElementState::Pressed, MouseButton::Middle, _) => true,
-        (ElementState::Released, MouseButton::Right | MouseButton::Middle, _) => false,
-        _ => user_state.camera_drag,
+    match mouse_button {
+        MouseButton::Left => if let Some(position) = &state.input_state.mouse_board_position {
+            let (layer, None) = position.get_layer_mut(&mut state.board_state.board, true) else {
+                println!("ahh!!!");
+                return;
+            };
+            if button_state == ElementState::Pressed {
+                layer.expand_or_create();
+            }
+        },
+        MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,
+        _ => {}
     }
 }
 
 pub fn mouse_scroll(amount:Vec2, state:&mut State) {
-    state.render_state.camera.scroll_input(amount.y, state.input_state.user_state.mouse_position);
+    state.render_state.camera.scroll_input(amount.y, state.input_state.mouse_position);
 }
 
 pub fn keyboard_input(event:KeyEvent, state:&mut State, window:&Window) {
     let KeyEvent { physical_key:PhysicalKey::Code(key), state:key_state, .. } = event else { return; };
-    let held_keys = &mut state.input_state.user_state.held_keys;
+    let held_keys = &mut state.input_state.held_keys;
     match key_state {
         ElementState::Pressed => {
             held_keys.insert(key);
@@ -62,7 +65,7 @@ pub fn keyboard_input(event:KeyEvent, state:&mut State, window:&Window) {
     }
 }
 
-impl UserState {
+impl InputState {
     #[must_use]
     pub fn keyboard_input_direction(&self) -> Vec2 {
         let mut result = Vec2::ZERO;
@@ -73,50 +76,6 @@ impl UserState {
             result += self.held_keys.get(&key).and(Some(direction)).unwrap_or_default();
         }
         result
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-pub struct MouseInputResponse {
-    hovered: bool,
-    consumed: bool,
-}
-
-impl BitOr for MouseInputResponse {
-    type Output = MouseInputResponse;
-    fn bitor(self, rhs: Self) -> Self::Output {
-        MouseInputResponse {
-            hovered: self.hovered | rhs.hovered,
-            consumed: self.consumed | rhs.consumed,
-        }
-    }
-}
-
-impl BitOrAssign for MouseInputResponse {
-    fn bitor_assign(&mut self, rhs: Self) {
-        *self = *self | rhs
-    }
-}
-
-pub struct UpdateContext<'a> {
-    user_state: &'a UserState,
-}
-
-pub struct MouseInputContext<'a> {
-    button_state:ElementState,
-    mouse_button:MouseButton,
-    user_state:&'a UserState,
-}
-
-pub trait Inputable {
-    fn update(&mut self, ctx:&mut UpdateContext) {
-        _ = ctx;
-    }
-
-    #[must_use]
-    fn mouse_input(&mut self, ctx:&mut MouseInputContext) -> MouseInputResponse {
-        _ = ctx;
-        MouseInputResponse { hovered: false, consumed: false }
     }
 }
 

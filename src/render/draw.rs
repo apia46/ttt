@@ -15,7 +15,7 @@ pub struct Style {
 
 pub struct DrawRectArgs {
     pub rect: Rect,
-    pub color: Color,
+    pub style: Style,
 }
 
 pub struct DrawLineArgs {
@@ -44,7 +44,12 @@ impl TextLayout {
 impl Renderer {
     #[expect(unused)]
     pub fn draw_rect(&mut self, args:DrawRectArgs, camera:&Camera) {
-        self.scene.fill(KurboFill::NonZero, camera.transform_inv(), args.color, None, &args.rect);
+        if let Some((width, color)) = args.style.stroke {
+            self.scene.stroke(&KurboStroke::new(width), camera.transform_inv(), color, None, &args.rect);
+        }
+        if let Some(color) = args.style.fill {
+            self.scene.fill(KurboFill::NonZero, camera.transform_inv(), color, None, &args.rect);
+        }
     }
 
     pub fn draw_line(&mut self, args:DrawLineArgs, camera:&Camera) {
