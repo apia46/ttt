@@ -11,6 +11,8 @@ mod position;
 
 pub use position::Position;
 
+use crate::board::position::PositionError;
+
 // a recursive tic tac toe board
 #[derive(Educe)]
 #[educe(Default)]
@@ -20,7 +22,7 @@ pub struct BoardState {
     pub board: LayerState,
 }
 
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum Value {
     X, O, Tie, Some, #[default] Empty,
 }
@@ -125,7 +127,7 @@ impl LayerState {
         let prev_value = self.value;
         let Some(next_value) = self.value_from_content() else { return None };
         self.value = next_value;
-        (prev_value == next_value).then_some(next_value)
+        (prev_value != next_value).then_some(next_value)
     }
 
     #[must_use]
@@ -142,7 +144,7 @@ impl LayerState {
 }
 
 pub struct LayerContent {
-    expanded: bool, // whether or not this is visibly expanded
+    pub expanded: bool, // whether or not this is visibly expanded
     further: Box<[LayerState; 9]>,
 }
 
@@ -178,7 +180,7 @@ where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
             // every iteration after the first
 
             // board is immutable while we have this so it shouldnt ever get out of sync
-            let mut stack = pos.get_stack(self.board).unwrap();
+            let (mut stack, None | Some(PositionError::PositionTooShallow)) = pos.get_stack(self.board) else { panic!() };
             loop {
                 let Some((direction, _)) = stack.pop() else { return None };
                 self.states.pop();

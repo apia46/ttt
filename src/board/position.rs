@@ -13,21 +13,20 @@ impl Position {
     /// returns a vec of directions, and then the resulting layer from that direction,
     /// so if its like [(d1, l1), (d2, l2)], then board[d1] = l1; l1[d2] = l2
     #[must_use]
-    pub fn get_stack<'a>(&self, board:&'a LayerState) -> Result<Vec<(Direction, &'a LayerState)>, PositionError> {
+    pub fn get_stack<'a>(&self, board:&'a LayerState) -> (Vec<(Direction, &'a LayerState)>, Option<PositionError>) {
         let pos = &self.0;
         let mut stack = vec![];
         let mut layer_curr = board;
         let mut pos_index = 0;
         loop {
             if let Some(LayerContent { further, .. }) = &layer_curr.content {
-                let Some(direction) = pos.get(pos_index).copied() else { return Err(PositionError::PositionTooShallow) };
+                let Some(direction) = pos.get(pos_index).copied() else { return (stack, Some(PositionError::PositionTooShallow)) };
                 layer_curr = &further[direction];
                 stack.push((direction, layer_curr));
                 pos_index += 1;
             } else { break }
         }
-        if pos_index != pos.len() { return Err(PositionError::PositionTooDeep) }
-        Ok(stack)
+        (stack, (pos_index != pos.len()).then_some(PositionError::PositionTooDeep))
     }
 
     #[must_use]

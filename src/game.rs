@@ -56,11 +56,13 @@ impl GameState {
             layer_curr = if let (l, None) = pos_curr.get_layer_mut(&mut self.board.board, false) { l } else { panic!() };
             if let Some(value) = layer_curr.update_value_from_content() {
                 if value == self.other.turn.to_value() { max_layer_won += 1; }
-                if value.is_full() { max_layer_filled += 1; }
+                if value.is_full() {
+                    max_layer_filled += 1;
+                    layer_curr.content.as_mut().unwrap().expanded = false;
+                }
             }
             pos_curr = if let Some(p) = pos_curr.out_one() { p } else { break };
         }
-        println!("{max_layer_won}");
         let this_player = self.other.turn;
         self.other.next_player();
         // if for example a [TL,TM,TR,ML] (in a layer 4 game) wins
