@@ -177,12 +177,12 @@ impl BoardState {
 
     #[must_use]
     pub fn iter_terminal_visible<T:Clone, I, R>(&self, initialise:I, recurse:R) -> BoardIterator<'_, T, I, R>
-    where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
+    where I: FnOnce() -> T + Copy, R: Fn(&T, Direction, &LayerState) -> T {
         BoardIterator { board: &self.board, only_visible: true, curr: None, initialise, recurse, states: vec![] }
     }
 }
 pub struct BoardIterator<'a, T, I, R>
-where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
+where I: FnOnce() -> T + Copy, R: Fn(&T, Direction, &LayerState) -> T {
     board: &'a LayerState,
     only_visible: bool,
     states: Vec<T>,
@@ -192,7 +192,7 @@ where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
 }
 
 impl<T: Clone, I, R> Iterator for BoardIterator<'_, T, I, R>
-where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
+where I: FnOnce() -> T + Copy, R: Fn(&T, Direction, &LayerState) -> T {
     type Item = (Value, T);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -208,7 +208,7 @@ where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
                     let previous_layer = if let Some((_, l)) = stack.last() { *l } else { self.board };
                     let next_layer = &previous_layer.content.as_ref().unwrap().further[next_direction];
                     stack.push((next_direction, next_layer));
-                    self.states.push((self.recurse)(self.states.last().unwrap(), next_direction));
+                    self.states.push((self.recurse)(self.states.last().unwrap(), next_direction, next_layer));
                     let mut layer_curr = next_layer;
                     loop {
                         match &layer_curr.content {
@@ -218,7 +218,7 @@ where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
                             }) => if self.only_visible && !expanded { break } else {
                                 layer_curr = &further[Direction::TL];
                                 stack.push((Direction::TL, layer_curr));
-                                self.states.push((self.recurse)(self.states.last().unwrap(), Direction::TL));
+                                self.states.push((self.recurse)(self.states.last().unwrap(), Direction::TL, layer_curr));
                             }
                         }
                     }
@@ -242,7 +242,7 @@ where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
                     } else {
                         layer_curr = &further[Direction::TL];
                         pos_curr += Direction::TL;
-                        self.states.push((self.recurse)(self.states.last().unwrap(), Direction::TL));
+                        self.states.push((self.recurse)(self.states.last().unwrap(), Direction::TL, layer_curr));
                     }
                 }
             }

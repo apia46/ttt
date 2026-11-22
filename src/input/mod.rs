@@ -4,7 +4,7 @@ use educe::Educe;
 use vello::kurbo::{Rect, Vec2};
 use winit::{event::{ElementState, KeyEvent, MouseButton}, keyboard::{KeyCode, PhysicalKey}};
 
-use crate::{board::{Position, Value}, game::GameStateState, window::Window};
+use crate::{board::{Position, PositionError, Value}, game::GameStateState, window::Window};
 use crate::render::camera::ScreenPoint;
 use crate::state::State;
 
@@ -47,12 +47,15 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                     }
                 },
                 GameStateState::Play => if let Some(position) = &state.input_state.mouse_board_position {
+                    let (layers, None | Some(PositionError::PositionTooShallow)) = position.get_stack(&state.game_state.board.board) else { panic!() };
+                    let filled = layers.iter().any(|(_, l)| l.value.is_full());
+
                     let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
                         println!("ahh!!!");
                         return
                     };
                     if position.depth() == state.game_state.board.layers {
-                        if layer.value == Value::Empty && position.within(&state.game_state.other.domain) {
+                        if layer.value == Value::Empty && position.within(&state.game_state.other.domain) && !filled {
                             state.game_state.other.place_at(layer);
                             state.game_state.placed_at(position);
                         }

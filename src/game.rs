@@ -12,6 +12,17 @@ impl Player {
     }
 }
 
+impl From<Value> for Option<Option<Player>> {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::X => Some(Some(Player::X)),
+            Value::O => Some(Some(Player::O)),
+            Value::Tie => Some(None),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct GameState {
     pub other: GameOtherState,

@@ -2,10 +2,11 @@ use educe::Educe;
 use macros::parse_color;
 use parley::{FontContext, LayoutContext};
 use vello::{Scene, kurbo::{Point, Rect, Vec2}, peniko::{Color, Gradient, ImageBrush, ImageData}};
+use vello_common::color::HueDirection;
 
 pub const BG_COLOR:Color = parse_color!("#161e4e");
 
-use crate::{board::{BoardState, Value}, game::{GameState, GameStateState}, window::Window};
+use crate::{board::{BoardState, Value}, game::{GameState, GameStateState, Player}, window::Window};
 use crate::input::InputState;
 
 mod state;
@@ -47,6 +48,7 @@ struct DrawSceneState {
     matching_mouse_position: bool,
     #[educe(Default=true)]
     in_domain: bool,
+    filled: Option<Option<Player>>,
 }
 
 impl Renderer {
@@ -62,26 +64,31 @@ impl Renderer {
                     matching_mouse_position: input_state.mouse_board_position.is_some(),
                     ..Default::default()
                 },
-            |prev, direction| {
+            |prev, direction, layer| {
                 let scale = prev.scale / 3.;
                 let matching_mouse_position = prev.matching_mouse_position && input_state.mouse_board_position.as_ref().is_some_and(|p| p.matches_at(direction, prev.layer));
                 let in_domain = prev.in_domain && (game_state.other.domain.depth() <= prev.layer || game_state.other.domain.matches_at(direction, prev.layer));
+                let filled = prev.filled.or_else(|| layer.value.into());
                 DrawSceneState {
                     scale, pos: prev.pos + direction * scale, layer: prev.layer + 1,
-                    matching_mouse_position,
-                    in_domain
+                    matching_mouse_position, in_domain, filled
                 }
             }
         ) {
             let half_size = Vec2::new(0.5, 0.5) * s.scale;
             let rect = Rect::from_points(s.pos - half_size, s.pos + half_size);
-            let fill = match (s.matching_mouse_position, s.in_domain) {
-                (true, true) => Some(parse_color!("#ffffff88")),
-                (false, false) => None,
-                _ => Some(parse_color!("#ffffff44"))
+            let mut fill = match (s.in_domain, s.filled) {
+                (true, None) => parse_color!("#ffffff44"),
+                (_, Some(None)) => parse_color!("#ff00ff44"),
+                (_, Some(Some(Player::X))) => parse_color!("#00ffff44"),
+                (_, Some(Some(Player::O))) => parse_color!("#ff006644"),
+                (false, None) => parse_color!("#0000"),
             };
+            if s.matching_mouse_position {
+                fill = fill.lerp(Color::WHITE, 0.2, HueDirection::Shorter);
+            }
             self.draw_rect(draw::DrawRectArgs {
-                rect, style: draw::Style { stroke: Some((s.scale * 0.05, Color::WHITE)), fill },
+                rect, style: draw::Style { stroke: Some((s.scale * 0.05, Color::WHITE)), fill: Some(fill) },
             }, Some(&state.camera));
             if let Some(image) = value.image() {
                 self.draw_image(draw::DrawImageArgs { rect, image, alpha: 1.0 }, Some(&state.camera));
