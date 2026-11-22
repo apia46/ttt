@@ -9,9 +9,7 @@ pub const BOARD_SIZE:f64 = 800.;
 
 mod position;
 
-pub use position::Position;
-
-use crate::board::position::PositionError;
+pub use position::{Position, PositionError};
 
 // a recursive tic tac toe board
 #[derive(Educe)]
@@ -116,6 +114,28 @@ impl LayerState {
                 layer_curr = &mut content.further[*direction];
             } else {
                 layer_curr.content = Some(LayerContent { expanded: true, further: Default::default() });
+                layer_curr = &mut layer_curr.content.as_mut().unwrap().further[*direction];
+            }
+        }
+        layer_curr
+    }
+
+    pub fn get_or_create(&mut self) -> &mut LayerContent {
+        if let Some(ref mut content) = self.content {
+            content
+        } else {
+            self.content = Some(LayerContent { expanded: false, further: Default::default() });
+            self.content.as_mut().unwrap()
+        }
+    }
+
+    pub fn get_or_create_to(&mut self, pos:&Position) -> &mut LayerState {
+        let mut layer_curr = self;
+        for direction in &pos.0 {
+            if let Some(ref mut content) = layer_curr.content {
+                layer_curr = &mut content.further[*direction];
+            } else {
+                layer_curr.content = Some(LayerContent { expanded: false, further: Default::default() });
                 layer_curr = &mut layer_curr.content.as_mut().unwrap().further[*direction];
             }
         }

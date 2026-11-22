@@ -32,14 +32,15 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
             if button_state == ElementState::Pressed { return }
             match state.game_state.other.state {
                 GameStateState::ExpandPrompt(ref mut position) => {
-                    let position = std::mem::take(position);
                     let center = crate::ui::expand_prompt_center(window);
                     let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
                     if button_rect.contains(state.input_state.mouse_position.0) {
+                        let position = std::mem::take(position);
                         state.game_state.expand_prompt_resolved(position, true);
                     } else {
                         let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
                         if button_rect.contains(state.input_state.mouse_position.0) {
+                            let position = std::mem::take(position);
                             state.game_state.expand_prompt_resolved(position, false);
                         }
                     }

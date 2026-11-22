@@ -1,4 +1,4 @@
-use crate::board::{BoardState, LayerState, Position, Value};
+use crate::board::{BoardState, LayerState, Position, PositionError, Value};
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Player { #[default] X, O }
@@ -53,7 +53,7 @@ impl GameState {
         let mut max_layer_won = 0;
         let mut max_layer_filled = 0;
         loop {
-            layer_curr = if let (l, None) = pos_curr.get_layer_mut(&mut self.board.board, false) { l } else { panic!() };
+            layer_curr = if let (l, None | Some(PositionError::PositionTooShallow)) = pos_curr.get_layer_mut(&mut self.board.board, false) { l } else { panic!() };
             if let Some(value) = layer_curr.update_value_from_content() {
                 if value == self.other.turn.to_value() { max_layer_won += 1; }
                 if value.is_full() {
@@ -84,16 +84,27 @@ impl GameState {
             // expand prompt
             GameStateState::ExpandPrompt(position.clone())
         } else {
-            self.other.domain = position.without(position.depth()-max_layer_won-2).unwrap();
-            self.board.board.expand_or_create_to(&self.other.domain).expand_or_create();
+            self.set_domain(position.without(position.depth()-max_layer_won-2).unwrap());
             GameStateState::Play
         };
     }
 
     pub fn expand_prompt_resolved(&mut self, position:Position, expand:bool) {
-        self.other.domain = if expand { position } else { position.without(0).unwrap() };
         self.other.state = GameStateState::Play;
-        if expand {  self.board.expand(); }
+        if expand { self.board.expand(); }
+        println!("xpanding");
+        self.set_domain(if expand { position } else { position.without(0).unwrap() });
+    }
+
+    fn set_domain(&mut self, to:Position) {
+        self.board.board.get_or_create_to(&to).get_or_create();
+        let (layers, None | Some(PositionError::PositionTooShallow)) = to.get_stack(&self.board.board) else { panic!() };
+        let mut directions = vec![];
+        for (direction, layer) in layers {
+            if layer.value.is_full() { break }
+            directions.push(direction);
+        }
+        self.other.domain = directions.into();
         self.board.board.expand_or_create_to(&self.other.domain).expand_or_create();
     }
 }

@@ -40,7 +40,7 @@ impl Position {
                 return (layer_curr, Some(PositionError::PositionTooDeep));
             }
         }
-        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { require_visible && !expanded } else { false };
+        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { (!require_visible) || expanded } else { false };
         (layer_curr, too_shallow.then_some(PositionError::PositionTooShallow))
     }
 
@@ -55,7 +55,7 @@ impl Position {
                 return (layer_curr, Some(PositionError::PositionTooDeep));
             }
         }
-        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { require_visible && !expanded } else { false };
+        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { (!require_visible) || expanded } else { false };
         (layer_curr, too_shallow.then_some(PositionError::PositionTooShallow))
     }
 
@@ -114,7 +114,7 @@ impl Position {
         if self.0.len() == 0 { return None }
         Some(Position(self.0[..index].iter().chain(&self.0[index+1..]).copied().collect()))
     }
-    
+
     #[must_use]
     pub fn within(&self, other:&Position) -> bool {
         if self.0.len() < other.0.len() { return false }
@@ -122,4 +122,9 @@ impl Position {
     }
 }
 
+impl From<Vec<Direction>> for Position {
+    fn from(value: Vec<Direction>) -> Self {
+        Position(value.into())
+    }
+}
 
