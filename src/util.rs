@@ -48,9 +48,10 @@ impl<T> Remap for T where T: Remapable {
 impl Remapable for f64 {}
 
 pub trait ComponentWise {
-    #[expect(unused)]
+    #[allow(unused)]
     #[must_use]
     fn mul(self, value:Self) -> Self;
+    #[allow(unused)]
     #[must_use]
     fn div(self, value:Self) -> Self;
 }
@@ -62,16 +63,6 @@ impl ComponentWise for Vec2 {
 
     fn div(self, value:Self) -> Self {
         Vec2::new(self.x / value.x, self.y / value.y)
-    }
-}
-
-impl ComponentWise for Size {
-    fn mul(self, value:Self) -> Self {
-        Size::new(self.width * value.width, self.height * value.height)
-    }
-
-    fn div(self, value:Self) -> Self {
-        Size::new(self.width / value.width, self.height / value.height)
     }
 }
 

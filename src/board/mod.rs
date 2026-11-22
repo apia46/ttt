@@ -20,7 +20,7 @@ pub struct BoardState {
     pub board: LayerState,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum Value {
     X, O, Tie, Some, #[default] Empty,
 }
@@ -43,6 +43,7 @@ macro_rules! image {
 }
 
 impl Value {
+    #[must_use]
     pub fn image(self) -> Option<ImageData> {
         Some(match self {
             Value::X => image!("../../assets/x.png", 32, 32),
@@ -51,6 +52,14 @@ impl Value {
             Value::Some => image!("../../assets/some.png", 32, 32),
             Value::Empty => return None
         })
+    }
+
+    #[must_use]
+    pub fn is_full(self) -> bool {
+        match self {
+            Value::X | Value::O | Value::Tie => true,
+            _ => false,
+        }
     }
 }
 
@@ -63,6 +72,7 @@ pub enum Direction {
 }
 
 impl Direction {
+    #[must_use]
     pub fn next(self) -> Option<Direction> {
         (self as u8 + 1).try_into().ok()
     }
@@ -71,16 +81,63 @@ impl Direction {
 #[derive(Default)]
 pub struct LayerState {
     pub value: Value,
-    content: Option<LayerContent>
+    pub content: Option<LayerContent>
 }
 
+const LINES:[[Direction; 3]; 8] = [
+    [Direction::TL, Direction::TM, Direction::TR],
+    [Direction::ML, Direction::MM, Direction::MR],
+    [Direction::BL, Direction::BM, Direction::MR],
+    [Direction::TL, Direction::ML, Direction::BL],
+    [Direction::TM, Direction::MM, Direction::BM],
+    [Direction::TR, Direction::MR, Direction::BR],
+    [Direction::TL, Direction::MM, Direction::BR],
+    [Direction::TR, Direction::MM, Direction::BL],
+];
+
 impl LayerState {
-    pub fn expand_or_create(&mut self) {
-        if let Some(content) = &mut self.content {
+    pub fn expand_or_create(&mut self) -> &mut LayerContent {
+        if let Some(ref mut content) = self.content {
             content.expanded = true;
+            content
         } else {
-            self.content = Some(LayerContent { expanded: true, further: Default::default() })
+            self.content = Some(LayerContent { expanded: true, further: Default::default() });
+            self.content.as_mut().unwrap()
         }
+    }
+
+    pub fn expand_or_create_to(&mut self, pos:&Position) -> &mut LayerState {
+        let mut layer_curr = self;
+        for direction in &pos.0 {
+            if let Some(ref mut content) = layer_curr.content {
+                content.expanded = true;
+                layer_curr = &mut content.further[*direction];
+            } else {
+                layer_curr.content = Some(LayerContent { expanded: true, further: Default::default() });
+                layer_curr = &mut layer_curr.content.as_mut().unwrap().further[*direction];
+            }
+        }
+        layer_curr
+    }
+
+    /// returns the new value if it was changed
+    pub fn update_value_from_content(&mut self) -> Option<Value> {
+        let prev_value = self.value;
+        let Some(next_value) = self.value_from_content() else { return None };
+        self.value = next_value;
+        (prev_value == next_value).then_some(next_value)
+    }
+
+    #[must_use]
+    pub fn value_from_content(&self) -> Option<Value> {
+        let Some(LayerContent { further, .. }) = &self.content else { return None };
+        for line in LINES {
+            let values = line.iter().map(|d| further[*d].value);
+            if values.clone().all(|v| v == Value::X) { return Some(Value::X) }
+            if values.clone().all(|v| v == Value::O) { return Some(Value::O) }
+        }
+        if further.iter().all(|l| l.value == Value::Empty ) { Some(Value::Empty) }
+        else { Some(Value::Some) }
     }
 }
 
@@ -90,6 +147,13 @@ pub struct LayerContent {
 }
 
 impl BoardState {
+    pub fn expand(&mut self) {
+        self.layers += 1;
+        let previous = std::mem::take(&mut self.board);
+        self.board.expand_or_create().further[Direction::MM] = previous;
+    }
+
+    #[must_use]
     pub fn iter_terminal_visible<T:Clone, I, R>(&self, initialise:I, recurse:R) -> BoardIterator<'_, T, I, R>
     where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
         BoardIterator { board: &self.board, only_visible: true, curr: None, initialise, recurse, states: vec![] }

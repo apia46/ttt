@@ -63,6 +63,7 @@ impl Camera {
         self.transform().inverse()
     }
 
+    #[must_use]
     fn default_pos(&self, window:&Window) -> Point {
         // (at the default scale)
         (window.size.0 * -0.5).to_point()
@@ -107,6 +108,7 @@ impl Camera {
         self.camera_moved = old_pos != self.pos;
     }
 
+    #[must_use]
     fn cancel_homing(&mut self) -> Option<&mut NormalCameraState> {
         match &mut self.state {
             CameraState::Normal(_) => {},

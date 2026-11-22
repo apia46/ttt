@@ -47,15 +47,20 @@ pub struct DrawImageArgs {
     pub alpha: f32,
 }
 
+fn transform(camera:Option<&Camera>) -> Affine {
+    if let Some(camera) = camera { camera.transform_inv() } else { Affine::IDENTITY }
+}
+
 impl Renderer {
     #[expect(unused)]
-    pub fn draw_rect(&mut self, args:DrawRectArgs, camera:&Camera) {
-        if let Some((width, color)) = args.style.stroke {
-            self.scene.stroke(&KurboStroke::new(width), camera.transform_inv(), color, None, &args.rect);
-        }
+    pub fn draw_rect(&mut self, args:DrawRectArgs, camera:Option<&Camera>) {
         if let Some(color) = args.style.fill {
-            self.scene.fill(KurboFill::NonZero, camera.transform_inv(), color, None, &args.rect);
+            self.scene.fill(KurboFill::NonZero, transform(camera), color, None, &args.rect);
         }
+        if let Some((width, color)) = args.style.stroke {
+            self.scene.stroke(&KurboStroke::new(width), transform(camera), color, None, &args.rect);
+        }
+
     }
 
     pub fn draw_line(&mut self, args:DrawLineArgs, camera:&Camera) {
@@ -80,7 +85,6 @@ impl Renderer {
     }
 
     pub fn draw_text(&mut self, position:Vec2, layout:&TextLayout, camera:Option<&Camera>) {
-        let transform = if let Some(camera) = camera { camera.transform_inv() } else { Affine::IDENTITY };
         let mut translate = position;
         if layout.center {
             translate += Vec2::new(-0.5*layout.layout.full_width() as f64, -0.5*layout.layout.height() as f64)
@@ -95,7 +99,7 @@ impl Renderer {
                         self.scene.draw_glyphs(run.font())
                             .font_size(run.font_size())
                             .normalized_coords(coords)
-                            .transform(transform.pre_translate(translate))
+                            .transform(transform(camera).pre_translate(translate))
                             .brush(glyph_run.style().brush)
                             .draw(KurboFill::NonZero, glyph_run.positioned_glyphs().map(|g| {
                                 vello::Glyph { id: g.id, x: g.x, y: g.y }
@@ -119,10 +123,9 @@ impl Renderer {
     }
 
     pub fn draw_image(&mut self, args:DrawImageArgs, camera:Option<&Camera>) {
-        let transform = if let Some(camera) = camera { camera.transform_inv() } else { Affine::IDENTITY };
         self.scene.draw_image(ImageBrush {
             image: &args.image, sampler: ImageSampler { alpha: args.alpha, quality: vello::peniko::ImageQuality::Low, ..Default::default() }
-        }, transform * Affine::translate(args.rect.origin().to_vec2())            .pre_scale_non_uniform(args.rect.width() / args.image.width as f64, args.rect.height() / args.image.height as f64)
+        }, transform(camera) * Affine::translate(args.rect.origin().to_vec2()).pre_scale_non_uniform(args.rect.width() / args.image.width as f64, args.rect.height() / args.image.height as f64)
         );
     }
 

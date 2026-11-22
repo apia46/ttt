@@ -5,7 +5,7 @@ use vello::{Scene, kurbo::{Point, Rect, Vec2}, peniko::{Color, Gradient, ImageBr
 
 pub const BG_COLOR:Color = parse_color!("#161e4e");
 
-use crate::{board::{BoardState, Value}, game::GameState, window::Window};
+use crate::{board::{BoardState, Value}, game::{GameState, GameStateState}, window::Window};
 use crate::input::InputState;
 
 mod state;
@@ -45,6 +45,8 @@ struct DrawSceneState {
     layer: usize,
     #[educe(Default=true)]
     matching_mouse_position: bool,
+    #[educe(Default=true)]
+    in_domain: bool,
 }
 
 impl Renderer {
@@ -63,17 +65,24 @@ impl Renderer {
             |prev, direction| {
                 let scale = prev.scale / 3.;
                 let matching_mouse_position = prev.matching_mouse_position && input_state.mouse_board_position.as_ref().is_some_and(|p| p.matches_at(direction, prev.layer));
+                let in_domain = prev.in_domain && (game_state.other.domain.depth() <= prev.layer || game_state.other.domain.matches_at(direction, prev.layer));
                 DrawSceneState {
                     scale, pos: prev.pos + direction * scale, layer: prev.layer + 1,
                     matching_mouse_position,
+                    in_domain
                 }
             }
         ) {
             let half_size = Vec2::new(0.5, 0.5) * s.scale;
             let rect = Rect::from_points(s.pos - half_size, s.pos + half_size);
+            let fill = match (s.matching_mouse_position, s.in_domain) {
+                (true, true) => Some(parse_color!("#ffffff88")),
+                (false, false) => None,
+                _ => Some(parse_color!("#ffffff44"))
+            };
             self.draw_rect(draw::DrawRectArgs {
-                rect, style: draw::Style { stroke: Some((s.scale * 0.05, Color::WHITE)), fill: s.matching_mouse_position.then_some(parse_color!("#bbbbbb")) },
-            }, &state.camera);
+                rect, style: draw::Style { stroke: Some((s.scale * 0.05, Color::WHITE)), fill },
+            }, Some(&state.camera));
             if let Some(image) = value.image() {
                 self.draw_image(draw::DrawImageArgs { rect, image, alpha: 1.0 }, Some(&state.camera));
             }
@@ -81,6 +90,34 @@ impl Renderer {
         self.draw_text_immediate(Vec2::new(20., 20.), draw::BuildTextArgs {
             text: &format!("turn: {:?}", game_state.other.turn), font_size: 100., color: Color::BLACK, center: false
         }, None);
+        if let GameStateState::ExpandPrompt(_) = game_state.other.state {
+            let center = crate::ui::expand_prompt_center(window);
+            self.draw_rect(draw::DrawRectArgs {
+                rect: Rect::from_center_size(center, crate::ui::EXPAND_PROMPT_HALF_SIZE*2.),
+                style: draw::Style { stroke: Some((8., parse_color!("#668899"))), fill: Some(parse_color!("#223344")) }
+            }, None);
+            self.draw_text_immediate(center.to_vec2() + Vec2::new(0., -20.), draw::BuildTextArgs {
+                text: "Expand?", font_size: 20., color: Color::WHITE, center: true
+            }, None);
+
+            let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0;
+            self.draw_rect(draw::DrawRectArgs {
+                rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
+                style: draw::Style { stroke: Some((4., parse_color!("#66997a"))), fill: Some(parse_color!("#223344")) }
+            }, None);
+            self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
+                text: "Yes", font_size: 20., color: Color::WHITE, center: true
+            }, None);
+
+            let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1;
+            self.draw_rect(draw::DrawRectArgs {
+                rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
+                style: draw::Style { stroke: Some((4., parse_color!("#854747"))), fill: Some(parse_color!("#223344")) }
+            }, None);
+            self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
+                text: "No", font_size: 20., color: Color::WHITE, center: true
+            }, None);
+        }
         &self.scene
     }
 }

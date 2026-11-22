@@ -12,12 +12,14 @@ pub struct App {
 }
 
 impl App {
+    #[must_use]
     pub fn new() -> Self {
         let event_loop = EventLoop::with_user_event().build().unwrap();
         let app_handler = AppHandler::default();
         App { event_loop, app_handler }
     }
 
+    #[must_use]
     pub fn run(mut self) -> Result<(), EventLoopError> {
         self.event_loop.run_app(&mut self.app_handler)
     }
@@ -62,7 +64,7 @@ impl ApplicationHandler for AppHandler {
                 }, &mut game.state);
             },
             (WindowEvent::MouseInput { device_id:_, state, button }, Some(game)) => {
-                input::mouse_input(state, button, &mut game.state);
+                input::mouse_input(state, button, &mut game.state, &game.window);
             },
             (WindowEvent::RedrawRequested, Some(game)) => {
                 game.window.render(|w| game.renderer.draw_scene(&game.state.render_state, &game.state.input_state, &game.state.game_state, w));
@@ -83,6 +85,7 @@ impl ApplicationHandler for AppHandler {
     }
 }
 
+#[must_use]
 fn tick(start:&Instant, previous:&mut Duration, length:&Duration) -> Option<f64> {
     let current = start.elapsed();
     let delta_time = current - *previous;

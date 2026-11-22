@@ -1,10 +1,10 @@
-use std::collections::HashSet;
+use std::{collections::HashSet};
 
 use educe::Educe;
-use vello::kurbo::Vec2;
+use vello::kurbo::{Rect, Vec2};
 use winit::{event::{ElementState, KeyEvent, MouseButton}, keyboard::{KeyCode, PhysicalKey}};
 
-use crate::{board::Position, window::Window};
+use crate::{board::{Position, Value}, game::GameStateState, window::Window};
 use crate::render::camera::ScreenPoint;
 use crate::state::State;
 
@@ -26,18 +26,37 @@ pub fn mouse_moved(to:ScreenPoint, state:&mut State) {
     if state.input_state.camera_drag { state.render_state.camera.drag_input(distance); }
 }
 
-pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State) {
+pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State, window:&Window) {
     match mouse_button {
-        MouseButton::Left => if let Some(position) = &state.input_state.mouse_board_position {
-            let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
-                println!("ahh!!!");
-                return;
-            };
-            if button_state == ElementState::Pressed {
-                if position.depth() == state.game_state.board.layers {
-                    state.game_state.other.place_at(layer);
-                }
-                else { layer.expand_or_create(); }
+        MouseButton::Left => {
+            if button_state == ElementState::Pressed { return }
+            match state.game_state.other.state {
+                GameStateState::ExpandPrompt(ref mut position) => {
+                    let position = std::mem::take(position);
+                    let center = crate::ui::expand_prompt_center(window);
+                    let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
+                    if button_rect.contains(state.input_state.mouse_position.0) {
+                        state.game_state.expand_prompt_resolved(position, true);
+                    } else {
+                        let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
+                        if button_rect.contains(state.input_state.mouse_position.0) {
+                            state.game_state.expand_prompt_resolved(position, false);
+                        }
+                    }
+                },
+                GameStateState::Play => if let Some(position) = &state.input_state.mouse_board_position {
+                    let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
+                        println!("ahh!!!");
+                        return
+                    };
+                    if position.depth() == state.game_state.board.layers {
+                        if layer.value == Value::Empty && position.within(&state.game_state.other.domain) {
+                            state.game_state.other.place_at(layer);
+                            state.game_state.placed_at(position);
+                        }
+                    } else { layer.expand_or_create(); }
+                },
+                GameStateState::End(_) => {}
             }
         },
         MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,
