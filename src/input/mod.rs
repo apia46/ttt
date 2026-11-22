@@ -37,6 +37,7 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                     if button_rect.contains(state.input_state.mouse_position.0) {
                         let position = std::mem::take(position);
                         state.game_state.expand_prompt_resolved(position, true);
+                        state.render_state.camera.triple(window);
                     } else {
                         let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
                         if button_rect.contains(state.input_state.mouse_position.0) {

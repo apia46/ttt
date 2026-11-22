@@ -1,4 +1,4 @@
-use std::ops::Sub;
+use std::ops::{Mul, Sub};
 
 use vello::kurbo::{Point, Vec2};
 
@@ -37,6 +37,13 @@ impl Sub for ScreenVec2 {
     type Output = ScreenVec2;
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl Mul<f64> for ScreenVec2 {
+    type Output = ScreenVec2;
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self(self.0 * rhs)
     }
 }
 

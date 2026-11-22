@@ -92,7 +92,6 @@ impl GameState {
     pub fn expand_prompt_resolved(&mut self, position:Position, expand:bool) {
         self.other.state = GameStateState::Play;
         if expand { self.board.expand(); }
-        println!("xpanding");
         self.set_domain(if expand { position } else { position.without(0).unwrap() });
     }
 

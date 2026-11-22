@@ -133,5 +133,11 @@ impl Camera {
     pub fn home(&mut self, window:&Window) {
         self.state = CameraState::Homing(HomingCameraState { target_pos: self.default_pos(window), target_scale: 1. });
     }
+
+    pub fn triple(&mut self, window:&Window) {
+        self.pos = (self.pos.to_vec2() / 3.).to_point();
+        self.scale /= 3.;
+        self.home(window);
+    }
 }
 
