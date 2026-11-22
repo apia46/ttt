@@ -18,4 +18,5 @@ wgpu = "30.0.1"
 winit = "0.30.13"
 num-traits = "0.2.19"
 num_enum = "0.7.6"
+vello_common = "0.4.0"
 

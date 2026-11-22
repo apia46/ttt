@@ -1,5 +1,5 @@
 use parley::{Layout, Alignment, AlignmentOptions, FontWeight, GenericFamily, PositionedLayoutItem, StyleProperty};
-use vello::{kurbo::{Affine, Line as KurboLine, Point, Rect, Stroke as KurboStroke, Vec2}, peniko::{Color, Fill as KurboFill, color::{AlphaColor, Srgb}}};
+use vello::{kurbo::{Affine, Line as KurboLine, Point, Rect, Stroke as KurboStroke, Vec2}, peniko::{Color, Fill as KurboFill, ImageBrush, ImageData, ImageSampler, color::{AlphaColor, Srgb}}};
 
 use crate::render::{ColorBrush, Renderer};
 use crate::render::camera::Camera;
@@ -39,6 +39,12 @@ impl TextLayout {
     pub fn height(&self) -> f32 {
         self.layout.height()
     }
+}
+
+pub struct DrawImageArgs {
+    pub rect: Rect,
+    pub image: ImageData,
+    pub alpha: f32,
 }
 
 impl Renderer {
@@ -105,6 +111,19 @@ impl Renderer {
                 }
             }
         }
+    }
+
+    pub fn draw_text_immediate(&mut self, position:Vec2, args:BuildTextArgs, camera:Option<&Camera>) {
+        let layout = self.build_text(args);
+        self.draw_text(position, &layout, camera);
+    }
+
+    pub fn draw_image(&mut self, args:DrawImageArgs, camera:Option<&Camera>) {
+        let transform = if let Some(camera) = camera { camera.transform_inv() } else { Affine::IDENTITY };
+        self.scene.draw_image(ImageBrush {
+            image: &args.image, sampler: ImageSampler { alpha: args.alpha, quality: vello::peniko::ImageQuality::Low, ..Default::default() }
+        }, transform * Affine::translate(args.rect.origin().to_vec2())            .pre_scale_non_uniform(args.rect.width() / args.image.width as f64, args.rect.height() / args.image.height as f64)
+        );
     }
 
 }

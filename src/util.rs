@@ -1,6 +1,6 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use vello::{kurbo::{Point, Vec2}, peniko::Color};
+use vello::{kurbo::{Point, Size, Vec2}, peniko::Color};
 
 pub trait Lerp<T> {
     #[must_use]
@@ -62,6 +62,16 @@ impl ComponentWise for Vec2 {
 
     fn div(self, value:Self) -> Self {
         Vec2::new(self.x / value.x, self.y / value.y)
+    }
+}
+
+impl ComponentWise for Size {
+    fn mul(self, value:Self) -> Self {
+        Size::new(self.width * value.width, self.height * value.height)
+    }
+
+    fn div(self, value:Self) -> Self {
+        Size::new(self.width / value.width, self.height / value.height)
     }
 }
 

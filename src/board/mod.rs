@@ -1,10 +1,15 @@
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul};
+use std::{io::Cursor, sync::{LazyLock, Arc}, ops::{Add, AddAssign, Index, IndexMut, Mul}};
 
 use educe::Educe;
 use num_enum::TryFromPrimitive;
-use vello::kurbo::Vec2;
+use vello::{kurbo::Vec2, peniko::{Blob, ImageData, ImageAlphaType}};
+use vello_common::pixmap::Pixmap;
 
 pub const BOARD_SIZE:f64 = 800.;
+
+mod position;
+
+pub use position::Position;
 
 // a recursive tic tac toe board
 #[derive(Educe)]
@@ -18,6 +23,35 @@ pub struct BoardState {
 #[derive(Clone, Copy, Default)]
 pub enum Value {
     X, O, Tie, Some, #[default] Empty,
+}
+
+macro_rules! image {
+    ($image:expr, $width:expr, $height:expr) => {
+        {
+            static DATA:LazyLock<Arc<Vec<u8>>> = LazyLock::new(|| {
+                let data = Cursor::new(include_bytes!($image));
+                Arc::new(Pixmap::from_png(data).unwrap().take_rgba8(ImageAlphaType::AlphaPremultiplied))
+            });
+            ImageData {
+                data: Blob::new(DATA.clone()),
+                format: vello::peniko::ImageFormat::Rgba8,
+                alpha_type: vello::peniko::ImageAlphaType::Alpha,
+                width: $width, height: $height,
+            }
+        }
+    };
+}
+
+impl Value {
+    pub fn image(self) -> Option<ImageData> {
+        Some(match self {
+            Value::X => image!("../../assets/x.png", 32, 32),
+            Value::O => image!("../../assets/o.png", 32, 32),
+            Value::Tie => image!("../../assets/tie.png", 32, 32),
+            Value::Some => image!("../../assets/some.png", 32, 32),
+            Value::Empty => return None
+        })
+    }
 }
 
 #[derive(Clone, Copy, TryFromPrimitive, Debug, PartialEq, Eq)]
@@ -34,13 +68,9 @@ impl Direction {
     }
 }
 
-// from big layers down to small layers
-#[derive(Default, Clone, Debug)]
-pub struct Position(Box<[Direction]>);
-
 #[derive(Default)]
 pub struct LayerState {
-    value: Value,
+    pub value: Value,
     content: Option<LayerContent>
 }
 
@@ -65,98 +95,6 @@ impl BoardState {
         BoardIterator { board: &self.board, only_visible: true, curr: None, initialise, recurse, states: vec![] }
     }
 }
-
-#[derive(Debug, Clone, Copy)]
-pub enum PositionError { PositionTooDeep, PositionTooShallow }
-
-impl Position {
-    /// returns a vec of directions, and then the resulting layer from that direction,
-    /// so if its like [(d1, l1), (d2, l2)], then board[d1] = l1; l1[d2] = l2
-    pub fn get_stack<'a>(&self, board:&'a LayerState) -> Result<Vec<(Direction, &'a LayerState)>, PositionError> {
-        let pos = &self.0;
-        let mut stack = vec![];
-        let mut layer_curr = board;
-        let mut pos_index = 0;
-        loop {
-            if let Some(LayerContent { further, .. }) = &layer_curr.content {
-                let Some(direction) = pos.get(pos_index).copied() else { return Err(PositionError::PositionTooShallow) };
-                layer_curr = &further[direction];
-                stack.push((direction, layer_curr));
-                pos_index += 1;
-            } else { break }
-        }
-        if pos_index != pos.len() { return Err(PositionError::PositionTooDeep) }
-        Ok(stack)
-    }
-
-    pub fn get_layer<'a>(&self, board:&'a LayerState, require_visible:bool) -> (&'a LayerState, Option<PositionError>) {
-        let pos = &self.0;
-        let mut layer_curr = board;
-        for direction in pos.iter().copied() {
-            if let Some(LayerContent { further, .. }) = &layer_curr.content {
-                layer_curr = &further[direction];
-            } else {
-                return (layer_curr, Some(PositionError::PositionTooDeep));
-            }
-        }
-        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { expanded || !require_visible } else { false };
-        (layer_curr, too_shallow.then_some(PositionError::PositionTooShallow))
-    }
-
-    pub fn get_layer_mut<'a>(&self, board:&'a mut LayerState, require_visible:bool) -> (&'a mut LayerState, Option<PositionError>) {
-        let pos = &self.0;
-        let mut layer_curr = board;
-        for direction in pos.iter().copied() {
-            if let Some(LayerContent { further, .. }) = &mut layer_curr.content {
-                layer_curr = &mut further[direction];
-            } else {
-                panic!()
-                // waiting for polonius
-                //return (layer_curr, Some(PositionError::PositionTooDeep));
-            }
-        }
-        let too_shallow = if let Some(LayerContent { expanded, .. }) = layer_curr.content { expanded || !require_visible } else { false };
-        (layer_curr, too_shallow.then_some(PositionError::PositionTooShallow))
-    }
-
-    pub fn matches_at(&self, check:Direction, index:usize) -> bool {
-        self.0.get(index).is_some_and(|d| *d == check)
-    }
-
-    /// scaled such that it is from 0 to 1
-    pub fn from_vec2_visible(mut vec2: Vec2, board:&LayerState) -> Option<Position> {
-        if vec2.x < 0. || vec2.x >= 1. || vec2.y < 0. || vec2.y >= 1. {
-            return None;
-        }
-
-        const F13:f64 = 1./3.;
-        const F23:f64 = 2./3.;
-
-        let mut pos:Vec<Direction> = vec![];
-        let mut layer = board;
-        loop {
-            let Some(LayerContent { expanded: true, further }) = &layer.content else { break };
-            let dir = match (vec2.x, vec2.y) {
-                (..F13, ..F13) => Direction::TL,
-                (F13..F23, ..F13) => Direction::TM,
-                (F23.., ..F13) => Direction::TR,
-                (..F13, F13..F23) => Direction::ML,
-                (F13..F23, F13..F23) => Direction::MM,
-                (F23.., F13..F23) => Direction::MR,
-                (..F13, F23..) => Direction::BL,
-                (F13..F23, F23..) => Direction::BM,
-                (F23.., F23..) => Direction::BR,
-                _ => return None,
-            };
-            pos.push(dir);
-            vec2 *= 3.;
-            vec2 -= dir * 1. + Vec2::new(1., 1.);
-            layer = &further[dir];
-        }
-        Some(Position(pos.into()))
-    }
-}
-
 pub struct BoardIterator<'a, T, I, R>
 where I: FnOnce() -> T + Copy, R: Fn(&T, Direction) -> T {
     board: &'a LayerState,

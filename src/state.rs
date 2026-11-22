@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use educe::Educe;
 
-use crate::{board::BoardState, input::{self, InputState}, render::{RenderState, Renderer}};
+use crate::{board::BoardState, input::{self, InputState}, render::{RenderState, Renderer}, game::GameState};
 
 #[derive(Educe)]
 #[educe(Default)]
@@ -11,7 +11,7 @@ pub struct State {
     pub start_time: Instant,
     pub input_state: InputState,
     pub render_state: RenderState,
-    pub board_state: BoardState,
+    pub game_state: GameState,
 }
 
 impl State {

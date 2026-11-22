@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::{BitOr, BitOrAssign}};
+use std::collections::HashSet;
 
 use educe::Educe;
 use vello::kurbo::Vec2;
@@ -22,19 +22,22 @@ pub fn mouse_moved(to:ScreenPoint, state:&mut State) {
     let distance = to.to_vec2() - from.to_vec2();
     state.input_state.mouse_position = to;
     let screen_position = state.render_state.camera.point_to_world(state.input_state.mouse_position);
-    state.input_state.mouse_board_position = Position::from_vec2_visible(screen_position.to_vec2() / crate::board::BOARD_SIZE + Vec2::new(0.5, 0.5), &state.board_state.board);
+    state.input_state.mouse_board_position = Position::from_vec2_visible(screen_position.to_vec2() / crate::board::BOARD_SIZE + Vec2::new(0.5, 0.5), &state.game_state.board.board);
     if state.input_state.camera_drag { state.render_state.camera.drag_input(distance); }
 }
 
 pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State) {
     match mouse_button {
         MouseButton::Left => if let Some(position) = &state.input_state.mouse_board_position {
-            let (layer, None) = position.get_layer_mut(&mut state.board_state.board, true) else {
+            let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
                 println!("ahh!!!");
                 return;
             };
             if button_state == ElementState::Pressed {
-                layer.expand_or_create();
+                if position.depth() == state.game_state.board.layers {
+                    state.game_state.other.place_at(layer);
+                }
+                else { layer.expand_or_create(); }
             }
         },
         MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,

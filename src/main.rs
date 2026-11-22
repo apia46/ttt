@@ -14,6 +14,7 @@ mod window;
 mod render;
 mod input;
 mod state;
+mod game;
 
 struct Game {
     window: Window,
