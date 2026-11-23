@@ -108,7 +108,6 @@ impl Camera {
         self.camera_moved = old_pos != self.pos;
     }
 
-    #[must_use]
     fn cancel_homing(&mut self) -> Option<&mut NormalCameraState> {
         match &mut self.state {
             CameraState::Normal(_) => {},

@@ -87,7 +87,7 @@ pub struct LayerState {
 const LINES:[[Direction; 3]; 8] = [
     [Direction::TL, Direction::TM, Direction::TR],
     [Direction::ML, Direction::MM, Direction::MR],
-    [Direction::BL, Direction::BM, Direction::MR],
+    [Direction::BL, Direction::BM, Direction::BR],
     [Direction::TL, Direction::ML, Direction::BL],
     [Direction::TM, Direction::MM, Direction::BM],
     [Direction::TR, Direction::MR, Direction::BR],
@@ -154,9 +154,9 @@ impl LayerState {
     pub fn value_from_content(&self) -> Option<Value> {
         let Some(LayerContent { further, .. }) = &self.content else { return None };
         for line in LINES {
-            let values = line.iter().map(|d| further[*d].value);
+            let mut values = line.iter().map(|d| further[*d].value);
             if values.clone().all(|v| v == Value::X) { return Some(Value::X) }
-            if values.clone().all(|v| v == Value::O) { return Some(Value::O) }
+            if values.all(|v| v == Value::O) { return Some(Value::O) }
         }
         if further.iter().all(|l| l.value == Value::Empty ) { Some(Value::Empty) }
         else if further.iter().all(|l| l.value.is_full() ) { Some(Value::Tie) }

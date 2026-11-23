@@ -962,27 +962,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "913a7d294ad056474749152107309fdee3ec17d2482d1ab70fdc61a81c64b9a3"
 
 [[package]]
-name = "idler"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "educe",
- "env_logger",
- "log",
- "macros",
- "num-traits",
- "num_enum",
- "parlance",
- "parley",
- "pollster",
- "skrifa 0.49.0",
- "vello",
- "vello_common",
- "wgpu",
- "winit",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2518,6 +2497,27 @@ name = "ttf-parser"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
+name = "ttt"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "educe",
+ "env_logger",
+ "log",
+ "macros",
+ "num-traits",
+ "num_enum",
+ "parlance",
+ "parley",
+ "pollster",
+ "skrifa 0.49.0",
+ "vello",
+ "vello_common",
+ "wgpu",
+ "winit",
+]
 
 [[package]]
 name = "unicode-ident"
