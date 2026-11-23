@@ -69,6 +69,7 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                     if position.depth() < state.game_state.board.layers { layer.expand_or_create(); }
                 }
             }
+            mouse_moved(state.input_state.mouse_position, state);
         },
         MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,
         _ => {}
