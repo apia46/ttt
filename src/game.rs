@@ -1,3 +1,6 @@
+use macros::parse_color;
+use vello::peniko::Color;
+
 use crate::board::{BoardState, LayerState, Position, PositionError, Value};
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -8,6 +11,14 @@ impl Player {
         match self {
             Player::X => Value::X,
             Player::O => Value::O,
+        }
+    }
+
+    pub fn color(player:Option<Player>) -> Color {
+        match player {
+            None => parse_color!("#ff00ff"),
+            Some(Player::X) => parse_color!("#00ffff"),
+            Some(Player::O) => parse_color!("#ff0066"),
         }
     }
 }
@@ -35,6 +46,7 @@ pub struct GameOtherState {
     pub turn: Player,
     pub domain: Position,
     pub state: GameStateState,
+    pub expand_denied:bool,
 }
 
 #[derive(Default)]
@@ -93,7 +105,12 @@ impl GameState {
             GameStateState::End(Some(this_player))
         } else if max_layer_won == self.board.layers - 1 {
             // expand prompt
-            GameStateState::ExpandPrompt(position.clone())
+            if self.other.expand_denied {
+                self.set_domain(position.without(0).unwrap());
+                GameStateState::Play
+            } else {
+                GameStateState::ExpandPrompt(position.clone())
+            }
         } else {
             self.set_domain(position.without(position.depth()-max_layer_won-2).unwrap());
             GameStateState::Play
@@ -103,6 +120,7 @@ impl GameState {
     pub fn expand_prompt_resolved(&mut self, position:Position, expand:bool) {
         self.other.state = GameStateState::Play;
         if expand { self.board.expand(); }
+        else { self.other.expand_denied = true; }
         self.set_domain(if expand { position } else { position.without(0).unwrap() });
     }
 

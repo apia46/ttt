@@ -121,7 +121,7 @@ impl Camera {
         let Some(state) = self.cancel_homing() else { return; };
         state.zoom_point = mouse_position;
         state.target_scale *= 2_f64.powf(amount*-0.02);
-        state.target_scale = state.target_scale.clamp(0.001953125, 1.);
+        state.target_scale = state.target_scale.clamp(0., 4.);
     }
 
     pub fn drag_input(&mut self, distance:ScreenVec2) {

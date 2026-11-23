@@ -61,7 +61,13 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                         }
                     } else { layer.expand_or_create(); }
                 },
-                GameStateState::End(_) => {}
+                GameStateState::End(_) => if let Some(position) = &state.input_state.mouse_board_position {
+                    let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
+                        println!("ahh!!!");
+                        return
+                    };
+                    if position.depth() < state.game_state.board.layers { layer.expand_or_create(); }
+                }
             }
         },
         MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,

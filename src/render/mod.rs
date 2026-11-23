@@ -62,6 +62,7 @@ impl Renderer {
         for (value, s) in game_state.board.iter_terminal_visible(
             || DrawSceneState {
                     matching_mouse_position: input_state.mouse_board_position.is_some(),
+                    in_domain: !matches!(game_state.other.state, GameStateState::End(_)),
                     ..Default::default()
                 },
             |prev, direction, layer| {
@@ -79,9 +80,7 @@ impl Renderer {
             let rect = Rect::from_points(s.pos - half_size, s.pos + half_size);
             let mut fill = match (s.in_domain, s.filled) {
                 (true, None) => parse_color!("#ffffff44"),
-                (_, Some(None)) => parse_color!("#ff00ff44"),
-                (_, Some(Some(Player::X))) => parse_color!("#00ffff44"),
-                (_, Some(Some(Player::O))) => parse_color!("#ff006644"),
+                (_, Some(player)) => Player::color(player).with_alpha(0.4),
                 (false, None) => parse_color!("#0000"),
             };
             if s.matching_mouse_position {
@@ -94,36 +93,50 @@ impl Renderer {
                 self.draw_image(draw::DrawImageArgs { rect, image, alpha: 1.0 }, Some(&state.camera));
             }
         }
-        self.draw_text_immediate(Vec2::new(20., 20.), draw::BuildTextArgs {
-            text: &format!("turn: {:?}", game_state.other.turn), font_size: 100., color: Color::BLACK, center: false
-        }, None);
-        if let GameStateState::ExpandPrompt(_) = game_state.other.state {
-            let center = crate::ui::expand_prompt_center(window);
-            self.draw_rect(draw::DrawRectArgs {
-                rect: Rect::from_center_size(center, crate::ui::EXPAND_PROMPT_HALF_SIZE*2.),
-                style: draw::Style { stroke: Some((8., parse_color!("#668899"))), fill: Some(parse_color!("#223344")) }
-            }, None);
-            self.draw_text_immediate(center.to_vec2() + Vec2::new(0., -20.), draw::BuildTextArgs {
-                text: "Expand?", font_size: 20., color: Color::WHITE, center: true
-            }, None);
+        match game_state.other.state {
+            GameStateState::Play => {
+                self.draw_text_immediate(Vec2::new(20., 20.), draw::BuildTextArgs {
+                    text: &format!("turn: {:?}", game_state.other.turn), font_size: 100., color: Player::color(Some(game_state.other.turn)), center: false
+                }, None);
+            },
+            GameStateState::ExpandPrompt(_) => {
+                let center = crate::ui::expand_prompt_center(window);
+                self.draw_rect(draw::DrawRectArgs {
+                    rect: Rect::from_center_size(center, crate::ui::EXPAND_PROMPT_HALF_SIZE*2.),
+                    style: draw::Style { stroke: Some((8., parse_color!("#668899"))), fill: Some(parse_color!("#223344")) }
+                }, None);
+                self.draw_text_immediate(center.to_vec2() + Vec2::new(0., -20.), draw::BuildTextArgs {
+                    text: "Expand?", font_size: 20., color: Color::WHITE, center: true
+                }, None);
 
-            let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0;
-            self.draw_rect(draw::DrawRectArgs {
-                rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
-                style: draw::Style { stroke: Some((4., parse_color!("#66997a"))), fill: Some(parse_color!("#223344")) }
-            }, None);
-            self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
-                text: "Yes", font_size: 20., color: Color::WHITE, center: true
-            }, None);
+                let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0;
+                self.draw_rect(draw::DrawRectArgs {
+                    rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
+                    style: draw::Style { stroke: Some((4., parse_color!("#66997a"))), fill: Some(parse_color!("#223344")) }
+                }, None);
+                self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
+                    text: "Yes", font_size: 20., color: Color::WHITE, center: true
+                }, None);
 
-            let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1;
-            self.draw_rect(draw::DrawRectArgs {
-                rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
-                style: draw::Style { stroke: Some((4., parse_color!("#854747"))), fill: Some(parse_color!("#223344")) }
-            }, None);
-            self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
-                text: "No", font_size: 20., color: Color::WHITE, center: true
-            }, None);
+                let button_pos = center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1;
+                self.draw_rect(draw::DrawRectArgs {
+                    rect: Rect::from_center_size(button_pos, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.),
+                    style: draw::Style { stroke: Some((4., parse_color!("#854747"))), fill: Some(parse_color!("#223344")) }
+                }, None);
+                self.draw_text_immediate(button_pos.to_vec2(), draw::BuildTextArgs {
+                    text: "No", font_size: 20., color: Color::WHITE, center: true
+                }, None);
+            },
+            GameStateState::End(result) => {
+                let text = match result {
+                    None => "Tie!",
+                    Some(Player::X) => "Player X win!",
+                    Some(Player::O) => "Player O win!",
+                };
+                self.draw_text_immediate(Vec2::new(0., -500.), draw::BuildTextArgs {
+                    text, font_size: 100., color: Player::color(result), center: true
+                }, Some(&state.camera));
+            }
         }
         &self.scene
     }

@@ -34,7 +34,7 @@ impl Position {
         let pos = &self.0;
         let mut layer_curr = board;
         for direction in pos.iter().copied() {
-            if let Some(LayerContent { further, .. }) = &layer_curr.content {
+            if let Some(LayerContent { ref further, .. }) = layer_curr.content {
                 layer_curr = &further[direction];
             } else {
                 return (layer_curr, Some(PositionError::PositionTooDeep));
