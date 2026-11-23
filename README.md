@@ -20,3 +20,5 @@ A layer K piece counts as filling the layer K board, and all boards within it.
 A board also counts as filled if it is tied (all 9 sub-boards are filled, with no winner).
 You cannot move in a filled board, even if it is within the domain and there is some empty layer 0 cell within it.<p>
 An N-layered game ends when either player makes a layer N move, or if the layer N board is tied.
+
+<img width="1834" height="1024" alt="explanation" src="https://github.com/user-attachments/assets/93403b46-a766-4cb7-a5b4-b2258782ac5c" />
