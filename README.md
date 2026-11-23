@@ -1,6 +1,10 @@
 # Infinitely* Recursive Tic Tac Toe
 A natural extension to the rules of https://en.wikipedia.org/wiki/Ultimate_tic-tac-toe, to an arbitrary number of layers.<p>
 My second attempt at doing this. See https://apia46.itch.io/tictactoe for the first.
+## How to run
+The latest release should have a "ttt-windows.exe" and a "ttt-linux".
+Find the appropriate one, and run it. The windows version should work on windows 11 and the linux version should work anywhere.
+Dynamically linked libraries may be missing in either case, but I don't really know which ones are needed, sorry.
 ## Controls
 * LMB - interact
 * RMB/MMB drag or WASD - move camera
