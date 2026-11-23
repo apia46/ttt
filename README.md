@@ -17,6 +17,6 @@ For example, a layer 0 move in the middle-left cell of some layer 1 board causes
 This is with the exception of a layer N-1 move in a N-layered game, which cannot change the Nth cell of the domain position, unless the game board is expanded mid-game.<p>
 If the domain is moved to somewhere that is filled, it will temporarily expand by layer until there is a valid move.
 A layer K piece counts as filling the layer K board, and all boards within it.
-A board also counts as filled if it is tied (all 9 sub-boards are taken, with no winner).
+A board also counts as filled if it is tied (all 9 sub-boards are filled, with no winner).
 You cannot move in a filled board, even if it is within the domain and there is some empty layer 0 cell within it.<p>
 An N-layered game ends when either player makes a layer N move, or if the layer N board is tied.
