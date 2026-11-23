@@ -159,6 +159,7 @@ impl LayerState {
             if values.clone().all(|v| v == Value::O) { return Some(Value::O) }
         }
         if further.iter().all(|l| l.value == Value::Empty ) { Some(Value::Empty) }
+        else if further.iter().all(|l| l.value.is_full() ) { Some(Value::Tie) }
         else { Some(Value::Some) }
     }
 }
