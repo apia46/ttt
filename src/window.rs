@@ -1,10 +1,10 @@
-use vello::{AaConfig, Renderer, RendererOptions, Scene, kurbo::Vec2, util::{RenderContext, RenderSurface}};
+use vello::{AaConfig, Renderer, RendererOptions, Scene, kurbo::{Point, Vec2}, util::{RenderContext, RenderSurface}};
 use wgpu::{CurrentSurfaceTexture, TextureViewDescriptor, wgt::CommandEncoderDescriptor};
 use winit::{dpi::{PhysicalPosition, PhysicalSize}, event_loop::ActiveEventLoop};
 use winit::window::Window as WinitWindow;
 use std::{sync::Arc, time::Duration};
 
-use crate::render::camera::{ScreenPoint, ScreenVec2};
+use crate::space::Screen;
 
 pub struct Window {
     window: Arc<WinitWindow>,
@@ -13,15 +13,15 @@ pub struct Window {
     renderer: Renderer,
     valid_surface: bool,
     inv_scale_factor: f64,
-    pub size: ScreenVec2,
+    pub size: Screen<Vec2>,
 }
 
-fn point_to_screen(inv_scale_factor:f64, from:PhysicalPosition<f64>) -> ScreenPoint {
-    ScreenPoint::new((Vec2::new(from.x, from.y) * inv_scale_factor).to_point())
+fn point_to_screen(inv_scale_factor:f64, from:PhysicalPosition<f64>) -> Screen<Point> {
+    Screen::<Point>::wrap((Vec2::new(from.x, from.y) * inv_scale_factor).to_point())
 }
 
-fn vec2_to_screen(inv_scale_factor:f64, from:PhysicalSize<u32>) -> ScreenVec2 {
-    ScreenVec2::new(Vec2::new(from.width as f64, from.height as f64) * inv_scale_factor)
+fn vec2_to_screen(inv_scale_factor:f64, from:PhysicalSize<u32>) -> Screen<Vec2> {
+    Screen::<Vec2>::wrap(Vec2::new(from.width as f64, from.height as f64) * inv_scale_factor)
 }
 
 impl Window {
@@ -38,12 +38,12 @@ impl Window {
     }
 
     #[must_use]
-    pub fn point_to_screen(&self, from:PhysicalPosition<f64>) -> ScreenPoint {
+    pub fn point_to_screen(&self, from:PhysicalPosition<f64>) -> Screen<Point> {
         point_to_screen(self.inv_scale_factor, from)
     }
 
     #[must_use]
-    pub fn vec2_to_screen(&self, from:PhysicalSize<u32>) -> ScreenVec2 {
+    pub fn vec2_to_screen(&self, from:PhysicalSize<u32>) -> Screen<Vec2> {
         vec2_to_screen(self.inv_scale_factor, from)
     }
 

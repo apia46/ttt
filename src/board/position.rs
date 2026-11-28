@@ -1,6 +1,6 @@
 use vello::kurbo::Vec2;
 
-use crate::board::{Direction, LayerContent, LayerState};
+use crate::{board::{Direction, LayerContent, LayerState}, space::{Space, World}};
 
 // from big layers down to small layers
 #[derive(Default, Clone, Debug)]
@@ -71,8 +71,8 @@ impl Position {
 
     /// scaled such that it is from 0 to 1
     #[must_use]
-    pub fn from_vec2_visible(mut vec2: Vec2, board:&LayerState) -> Option<Position> {
-        if vec2.x < 0. || vec2.x >= 1. || vec2.y < 0. || vec2.y >= 1. {
+    pub fn from_vec2_visible(mut vec2: World<Vec2>, board:&LayerState) -> Option<Position> {
+        if vec2.as_inner().x < 0. || vec2.as_inner().x >= 1. || vec2.as_inner().y < 0. || vec2.as_inner().y >= 1. {
             return None;
         }
 
@@ -83,7 +83,7 @@ impl Position {
         let mut layer = board;
         loop {
             let Some(LayerContent { expanded: true, further }) = &layer.content else { break };
-            let dir = match (vec2.x, vec2.y) {
+            let dir = match (vec2.as_inner().x, vec2.as_inner().y) {
                 (..F13, ..F13) => Direction::TL,
                 (F13..F23, ..F13) => Direction::TM,
                 (F23.., ..F13) => Direction::TR,
@@ -97,7 +97,7 @@ impl Position {
             };
             pos.push(dir);
             vec2 *= 3.;
-            vec2 -= dir * 1. + Vec2::new(1., 1.);
+            vec2 -= dir * 1. + Vec2::new(1., 1.).wrapped();
             layer = &further[dir];
         }
         Some(Position(pos.into()))

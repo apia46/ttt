@@ -1,52 +1,73 @@
 use std::{collections::HashSet};
 
 use educe::Educe;
-use vello::kurbo::{Rect, Vec2};
+use vello::kurbo::{Point, Vec2};
 use winit::{event::{ElementState, KeyEvent, MouseButton}, keyboard::{KeyCode, PhysicalKey}};
 
-use crate::{board::{Position, PositionError, Value}, game::GameStateState, window::Window};
-use crate::render::camera::ScreenPoint;
+use crate::{board::{Position, PositionError, Value}, game::GameStateState, space::{Screen, Space}, window::Window};
 use crate::state::State;
+
+pub struct MouseInput {
+    pub state: ElementState,
+    pub button: MouseButton,
+    pub consumed: bool,
+}
+
+impl MouseInput {
+    pub fn new(state:ElementState, button:MouseButton) -> Self {
+        MouseInput { state, button, consumed: false }
+    }
+}
+
 
 #[derive(Educe)]
 #[educe(Default)]
 pub struct InputState {
-    pub mouse_position: ScreenPoint,
+    pub mouse_position: Screen<Point>,
     pub mouse_board_position: Option<Position>,
     pub camera_drag: bool,
     pub held_keys: HashSet<KeyCode>,
 }
 
-pub fn mouse_moved(to:ScreenPoint, state:&mut State) {
+pub fn mouse_moved(to:Screen<Point>, state:&mut State, window:&Window) {
     let from = state.input_state.mouse_position;
     let distance = to.to_vec2() - from.to_vec2();
     state.input_state.mouse_position = to;
-    let screen_position = state.render_state.camera.point_to_world(state.input_state.mouse_position);
-    state.input_state.mouse_board_position = Position::from_vec2_visible(screen_position.to_vec2() / crate::board::BOARD_SIZE + Vec2::new(0.5, 0.5), &state.game_state.board.board);
-    if state.input_state.camera_drag { state.render_state.camera.drag_input(distance); }
+    let world_position = state.input_state.mouse_position.convert(&state.camera);
+    state.input_state.mouse_board_position = Position::from_vec2_visible(world_position.to_vec2() / crate::board::BOARD_SIZE + Vec2::new(0.5, 0.5).wrapped(), &state.game_state.board.board);
+    if state.input_state.camera_drag { state.camera.drag_input(distance); }
+    state.game_state.other.home_button.mouse_moved(&state.input_state, window);
+    match state.game_state.other.state {
+        GameStateState::Play => {},
+        GameStateState::ExpandPrompt(ref mut prompt) => {
+            prompt.yes_button.mouse_moved(&state.input_state, window);
+            prompt.no_button.mouse_moved(&state.input_state, window);
+        },
+        GameStateState::End(_) => {},
+    }
 }
 
-pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&mut State, window:&Window) {
-    match mouse_button {
+pub fn mouse_input(mut input:MouseInput, state:&mut State, window:&Window) {
+    if state.game_state.other.home_button.mouse_input(&mut input) {
+        state.camera.home(&window);
+    }
+    match input.button {
         MouseButton::Left => {
-            if button_state == ElementState::Pressed { return }
             match state.game_state.other.state {
-                GameStateState::ExpandPrompt(ref mut position) => {
-                    let center = crate::ui::expand_prompt_center(window);
-                    let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.0, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
-                    if button_rect.contains(state.input_state.mouse_position.0) {
-                        let position = std::mem::take(position);
+                GameStateState::ExpandPrompt(ref mut prompt) => {
+                    let yes_pressed = prompt.yes_button.mouse_input(&mut input);
+                    let no_pressed = prompt.no_button.mouse_input(&mut input);
+                    if yes_pressed {
+                        let position = std::mem::take(&mut prompt.expand_position);
                         state.game_state.expand_prompt_resolved(position, true);
-                        state.render_state.camera.triple(window);
-                    } else {
-                        let button_rect = Rect::from_center_size(center + crate::ui::EXPAND_PROMPT_BUTTON_POS_OFFSETS.1, crate::ui::EXPAND_PROMPT_BUTTON_HALF_SIZE*2.);
-                        if button_rect.contains(state.input_state.mouse_position.0) {
-                            let position = std::mem::take(position);
-                            state.game_state.expand_prompt_resolved(position, false);
-                        }
+                        state.camera.triple(window);
+                    } else if no_pressed {
+                        let position = std::mem::take(&mut prompt.expand_position);
+                        state.game_state.expand_prompt_resolved(position, false);
                     }
                 },
                 GameStateState::Play => if let Some(position) = &state.input_state.mouse_board_position {
+                    if input.state == ElementState::Pressed { return }
                     let (layers, None | Some(PositionError::PositionTooShallow)) = position.get_stack(&state.game_state.board.board) else { panic!() };
                     let filled = layers.iter().any(|(_, l)| l.value.is_full());
 
@@ -62,6 +83,7 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                     } else { layer.expand_or_create(); }
                 },
                 GameStateState::End(_) => if let Some(position) = &state.input_state.mouse_board_position {
+                    if input.state == ElementState::Pressed { return }
                     let (layer, None) = position.get_layer_mut(&mut state.game_state.board.board, true) else {
                         println!("ahh!!!");
                         return
@@ -69,15 +91,15 @@ pub fn mouse_input(button_state:ElementState, mouse_button:MouseButton, state:&m
                     if position.depth() < state.game_state.board.layers { layer.expand_or_create(); }
                 }
             }
-            mouse_moved(state.input_state.mouse_position, state);
+            mouse_moved(state.input_state.mouse_position, state, window);
         },
-        MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = button_state == ElementState::Pressed,
+        MouseButton::Right | MouseButton::Middle => state.input_state.camera_drag = input.state == ElementState::Pressed,
         _ => {}
     }
 }
 
 pub fn mouse_scroll(amount:Vec2, state:&mut State) {
-    state.render_state.camera.scroll_input(amount.y, state.input_state.mouse_position);
+    state.camera.scroll_input(amount.y, state.input_state.mouse_position);
 }
 
 pub fn keyboard_input(event:KeyEvent, state:&mut State, window:&Window) {
@@ -88,7 +110,7 @@ pub fn keyboard_input(event:KeyEvent, state:&mut State, window:&Window) {
             held_keys.insert(key);
             match key {
                 KeyCode::KeyH => {
-                    state.render_state.camera.home(&window);
+                    state.camera.home(&window);
                 },
                 _ => {}
             }

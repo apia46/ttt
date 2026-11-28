@@ -1,10 +1,11 @@
+use educe::Educe;
 use macros::parse_color;
-use vello::peniko::Color;
+use vello::{kurbo::{Point, Size}, peniko::Color};
 
-use crate::board::{BoardState, LayerState, Position, PositionError, Value};
+use crate::{board::{BoardState, LayerState, Position, PositionError, Value}, button::simple::{NewSimpleButtonArgs, SimpleButton}, space::{Space, anchor::{Anchor, AnchorContext, BottomMiddle, BottomRight}}};
 
-#[derive(Default, Debug, Clone, Copy)]
-pub enum Player { #[default] X, O }
+#[derive(Debug, Clone, Copy)]
+pub enum Player { X, O }
 impl Player {
     #[must_use]
     pub fn to_value(self) -> Value {
@@ -41,26 +42,66 @@ pub struct GameState {
 }
 
 // hello code reviewer :)
-#[derive(Default)]
+#[derive(Educe)]
+#[educe(Default)]
 pub struct GameOtherState {
+    #[educe(Default=Player::X)]
     pub turn: Player,
     pub domain: Position,
     pub state: GameStateState,
     pub expand_denied:bool,
+    #[educe(Default=home_button())]
+    pub home_button:SimpleButton<AnchorContext<BottomRight>>,
 }
 
 #[derive(Default)]
 pub enum GameStateState {
     #[default] Play,
-    ExpandPrompt(Position),
+    ExpandPrompt(ExpandPrompt),
     End(Option<Player>),
+}
+
+pub struct ExpandPrompt {
+    pub expand_position:Position,
+    pub yes_button:SimpleButton<AnchorContext<BottomMiddle>>,
+    pub no_button:SimpleButton<AnchorContext<BottomMiddle>>,
+}
+
+impl ExpandPrompt {
+    fn new(expand_position:Position) -> Self {
+        ExpandPrompt { expand_position, yes_button: yes_button(), no_button: no_button() }
+    }
+}
+
+fn home_button() -> SimpleButton<AnchorContext<BottomRight>> {
+    SimpleButton::new(NewSimpleButtonArgs {
+        rect: Anchor::from_center_size(Point::new(-30., -30.).wrapped(), Size::new(40., 40.).wrapped()),
+        fill_color: parse_color!("#223344"), border_color: parse_color!("#668899"), text_color: parse_color!("#ffffff"),
+        text: "Home".into(), font_size: 20., disabled: false,
+    })
+}
+
+fn yes_button() -> SimpleButton<AnchorContext<BottomMiddle>> {
+    SimpleButton::new(NewSimpleButtonArgs {
+        rect: Anchor::from_center_size(Point::new(-50., -30.).wrapped(), Size::new(50., 20.).wrapped()),
+        fill_color: parse_color!("#223344"), border_color: parse_color!("#66997a"), text_color: parse_color!("#ffffff"),
+        text: "Yes".into(), font_size: 20., disabled: false,
+    })
+}
+
+fn no_button() -> SimpleButton<AnchorContext<BottomMiddle>> {
+    SimpleButton::new(NewSimpleButtonArgs {
+        rect: Anchor::from_center_size(Point::new(50., -30.).wrapped(), Size::new(50., 20.).wrapped()),
+        fill_color: parse_color!("#223344"), border_color: parse_color!("#854747"), text_color: parse_color!("#ffffff"),
+        text: "No".into(), font_size: 20., disabled: false,
+    })
 }
 
 impl GameOtherState {
     pub fn place_at(&mut self, layer:&mut LayerState) {
         layer.value = self.turn.to_value();
     }
-    
+
     fn next_player(&mut self) {
         self.turn = match self.turn {
             Player::X => Player::O,
@@ -109,7 +150,7 @@ impl GameState {
                 self.set_domain(position.without(0).unwrap());
                 GameStateState::Play
             } else {
-                GameStateState::ExpandPrompt(position.clone())
+                GameStateState::ExpandPrompt(ExpandPrompt::new(position.clone()))
             }
         } else {
             self.set_domain(position.without(position.depth()-max_layer_won-2).unwrap());

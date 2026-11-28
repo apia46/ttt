@@ -1,8 +1,7 @@
 use parley::{Layout, Alignment, AlignmentOptions, FontWeight, GenericFamily, PositionedLayoutItem, StyleProperty};
 use vello::{kurbo::{Affine, Line as KurboLine, Point, Rect, Stroke as KurboStroke, Vec2}, peniko::{Color, Fill as KurboFill, ImageBrush, ImageData, ImageSampler, color::{AlphaColor, Srgb}}};
 
-use crate::render::{ColorBrush, Renderer};
-use crate::render::camera::Camera;
+use crate::{render::{ColorBrush, Renderer}, space::{Context, Contexted}};
 
 pub type Stroke = (f64, Color);
 pub type Fill = Color;
@@ -13,14 +12,14 @@ pub struct Style {
     pub fill: Option<Fill>,
 }
 
-pub struct DrawRectArgs {
-    pub rect: Rect,
+pub struct DrawRectArgs<T:Context> {
+    pub rect: Contexted<Rect, T>,
     pub style: Style,
 }
 
-pub struct DrawLineArgs {
-    pub start: Point,
-    pub end: Point,
+pub struct DrawLineArgs<T:Context> {
+    pub start: Contexted<Point, T>,
+    pub end: Contexted<Point, T>,
     pub stroke: Stroke,
 }
 
@@ -36,38 +35,34 @@ pub struct TextLayout {
 }
 
 impl TextLayout {
+    #[allow(unused)]
     pub fn height(&self) -> f32 {
         self.layout.height()
     }
 }
 
-pub struct DrawImageArgs {
-    pub rect: Rect,
+pub struct DrawImageArgs<T:Context> {
+    pub rect: Contexted<Rect,T>,
     pub image: ImageData,
     pub alpha: f32,
 }
 
-fn transform(camera:Option<&Camera>) -> Affine {
-    if let Some(camera) = camera { camera.transform_inv() } else { Affine::IDENTITY }
-}
-
 impl Renderer {
-    #[expect(unused)]
-    pub fn draw_rect(&mut self, args:DrawRectArgs, camera:Option<&Camera>) {
+    pub fn draw_rect<T:Context>(&mut self, mut args:DrawRectArgs<T>, state:T::State<'_>) {
         if let Some(color) = args.style.fill {
-            self.scene.fill(KurboFill::NonZero, transform(camera), color, None, &args.rect);
+            self.scene.fill(KurboFill::NonZero, T::transform_from(state), color, None, args.rect.as_inner());
         }
         if let Some((width, color)) = args.style.stroke {
-            self.scene.stroke(&KurboStroke::new(width), transform(camera), color, None, &args.rect);
+            self.scene.stroke(&KurboStroke::new(width), T::transform_from(state), color, None, args.rect.as_inner());
         }
-
     }
 
-    pub fn draw_line(&mut self, args:DrawLineArgs, camera:&Camera) {
+    #[allow(unused)]
+    pub fn draw_line<T:Context>(&mut self, args:DrawLineArgs<T>, state:T::State<'_>) {
         let (width, color) = args.stroke;
         self.scene.stroke(
-            &KurboStroke::new(width), camera.transform_inv(), color, None,
-            &KurboLine { p0: args.start, p1: args.end }
+            &KurboStroke::new(width), T::transform_from(state), color, None,
+            &KurboLine { p0: args.start.to_inner(), p1: args.end.to_inner() }
         );
     }
 
@@ -84,10 +79,10 @@ impl Renderer {
         TextLayout { layout, center: args.center }
     }
 
-    pub fn draw_text(&mut self, position:Vec2, layout:&TextLayout, camera:Option<&Camera>) {
-        let mut translate = position;
+    pub fn draw_text<T:Context>(&mut self, position:Contexted<Point, T>, layout:&TextLayout, state:T::State<'_>) {
+        let mut translate = position.to_inner().to_vec2();
         if layout.center {
-            translate += Vec2::new(-0.5*layout.layout.full_width() as f64, -0.5*layout.layout.height() as f64)
+            translate += Vec2::new(-0.5*layout.layout.full_width() as f64, -0.5*layout.layout.height() as f64);
         }
 
         for line in layout.layout.lines() {
@@ -99,7 +94,7 @@ impl Renderer {
                         self.scene.draw_glyphs(run.font())
                             .font_size(run.font_size())
                             .normalized_coords(coords)
-                            .transform(transform(camera).pre_translate(translate))
+                            .transform(T::transform_from(state).pre_translate(translate))
                             .brush(glyph_run.style().brush)
                             .draw(KurboFill::NonZero, glyph_run.positioned_glyphs().map(|g| {
                                 vello::Glyph { id: g.id, x: g.x, y: g.y }
@@ -117,16 +112,16 @@ impl Renderer {
         }
     }
 
-    pub fn draw_text_immediate(&mut self, position:Vec2, args:BuildTextArgs, camera:Option<&Camera>) {
+    pub fn draw_text_immediate<T:Context>(&mut self, position:Contexted<Point, T>, args:BuildTextArgs, state:T::State<'_>) {
         let layout = self.build_text(args);
-        self.draw_text(position, &layout, camera);
+        self.draw_text::<T>(position, &layout, state);
     }
 
-    pub fn draw_image(&mut self, args:DrawImageArgs, camera:Option<&Camera>) {
+    pub fn draw_image<T:Context>(&mut self, args:DrawImageArgs<T>, state:T::State<'_>) {
+        let rect = args.rect.to_screen(state).to_inner();
         self.scene.draw_image(ImageBrush {
             image: &args.image, sampler: ImageSampler { alpha: args.alpha, quality: vello::peniko::ImageQuality::Low, ..Default::default() }
-        }, transform(camera) * Affine::translate(args.rect.origin().to_vec2()).pre_scale_non_uniform(args.rect.width() / args.image.width as f64, args.rect.height() / args.image.height as f64)
-        );
+        }, Affine::translate(rect.origin().to_vec2()).pre_scale_non_uniform(rect.width() / args.image.width as f64, rect.height() / args.image.height as f64));
     }
 
 }

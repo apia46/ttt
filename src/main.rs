@@ -11,11 +11,12 @@ mod board;
 mod app;
 mod window;
 
+mod space;
 mod render;
 mod input;
 mod state;
 mod game;
-mod ui;
+mod button;
 
 struct Game {
     window: Window,

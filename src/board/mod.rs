@@ -11,6 +11,8 @@ mod position;
 
 pub use position::{Position, PositionError};
 
+use crate::space::{Space, World};
+
 // a recursive tic tac toe board
 #[derive(Educe)]
 #[educe(Default)]
@@ -280,7 +282,7 @@ impl<T> IndexMut<Direction> for [T; 9] {
 }
 
 impl Mul<f64> for Direction {
-    type Output = Vec2;
+    type Output = World<Vec2>;
     fn mul(self, rhs: f64) -> Self::Output {
         match self {
             Direction::TL => Vec2::new(-rhs, -rhs),
@@ -292,7 +294,7 @@ impl Mul<f64> for Direction {
             Direction::BL => Vec2::new(-rhs, rhs),
             Direction::BM => Vec2::new(0., rhs),
             Direction::BR => Vec2::new(rhs,rhs),
-        }
+        }.wrapped()
     }
 }
 

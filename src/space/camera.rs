@@ -1,19 +1,15 @@
 use educe::Educe;
 use vello::kurbo::{Affine, Point, Vec2};
 
-use crate::{input::InputState, util::Lerp, window::Window};
+use crate::{input::InputState, space::{Context, Contexted, Screen, Space}, util::Lerp, window::Window};
 
 const CAMERA_SPEED:f64 = 30000.;
 const VELOCITY_DECAY:f64 = 1.5e-6;
 
-mod types;
-
-pub use types::{ScreenPoint, ScreenVec2};
-
 #[derive(Educe)]
 #[educe(Default)]
 pub struct Camera {
-    pub pos: Point,
+    pub pos: World<Point>,
     state: CameraState,
     #[educe(Default=1)]
     scale: f64,
@@ -31,42 +27,45 @@ enum CameraState {
 #[derive(Educe)]
 #[educe(Default)]
 struct NormalCameraState {
-    velocity: Vec2,
-    zoom_point: ScreenPoint,
+    velocity: World<Vec2>,
+    zoom_point: Screen<Point>,
     #[educe(Default=1)]
     target_scale: f64,
 }
 
 #[derive(Default)]
 struct HomingCameraState {
-    target_pos: Point,
+    target_pos: World<Point>,
     target_scale: f64,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct WorldContext;
+
+pub type World<T> = Contexted<T, WorldContext>;
+
+impl Context for WorldContext {
+    type State<'a> = &'a Camera;
+
+    fn transform_to<'a>(state:Self::State<'a>) -> Affine {
+        state.transform_to_world()
+    }
+
+    fn transform_from<'a>(state:Self::State<'a>) -> Affine {
+        Self::transform_to(state).inverse()
+    }
 }
 
 impl Camera {
     #[must_use]
-    pub fn point_to_world(&self, value:ScreenPoint) -> Point {
-        self.transform() * value.0
-    }
-    #[must_use]
-    pub fn vec2_to_world(&self, value:ScreenVec2) -> Vec2 {
-        value.0 * self.scale
+    fn transform_to_world(&self) -> Affine {
+        Affine::scale(self.scale).then_translate(self.pos.to_vec2().inner)
     }
 
     #[must_use]
-    pub fn transform(&self) -> Affine {
-        Affine::scale(self.scale).then_translate(self.pos.to_vec2())
-    }
-
-    #[must_use]
-    pub fn transform_inv(&self) -> Affine {
-        self.transform().inverse()
-    }
-
-    #[must_use]
-    fn default_pos(&self, window:&Window) -> Point {
+    fn default_pos(&self, window:&Window) -> World<Point> {
         // (at the default scale)
-        (window.size.0 * -0.5).to_point()
+        (window.size * -0.5).to_point().cast()
     }
 
     pub fn go_to_default_pos(&mut self, window:&Window) {
@@ -83,13 +82,13 @@ impl Camera {
 
         match &mut self.state {
             CameraState::Normal(state) => {
-                state.velocity += input_state.keyboard_input_direction() * CAMERA_SPEED * self.scale * delta_time;
+                state.velocity += (input_state.keyboard_input_direction() * CAMERA_SPEED * delta_time).wrapped();
                 let new_scale = (1.-adjusted_decay).lerp(self.scale, state.target_scale);
                 // zoom correction: the mouse should be at the same world position before and after the zoom
                 // mouse * scale_i + pos_i = mouse * scale_f + pos_f
                 // mouse * (scale_i-scale_f) + pos_i = pos_f
                 // zoom_correction = mouse * (scale_i-scale_f)
-                let zoom_correction = state.zoom_point.to_vec2().0 * (self.scale - new_scale);
+                let zoom_correction = (state.zoom_point.to_vec2() * (self.scale - new_scale)).cast();
                 state.velocity *= adjusted_decay;
                 self.pos += state.velocity * delta_time + zoom_correction;
                 self.scale = new_scale;
@@ -116,16 +115,16 @@ impl Camera {
         if let CameraState::Normal(state) = &mut self.state { Some(state) } else { None }
     }
 
-    pub fn scroll_input(&mut self, amount:f64, mouse_position:ScreenPoint) {
+    pub fn scroll_input(&mut self, amount:f64, mouse_position:Screen<Point>) {
         let Some(state) = self.cancel_homing() else { return; };
         state.zoom_point = mouse_position;
         state.target_scale *= 2_f64.powf(amount*-0.02);
         state.target_scale = state.target_scale.clamp(0., 4.);
     }
 
-    pub fn drag_input(&mut self, distance:ScreenVec2) {
+    pub fn drag_input(&mut self, distance:Screen<Vec2>) {
         if let Some(_) = self.cancel_homing() {
-            self.pos += -distance.0 * self.scale;
+            self.pos -= distance.convert(&*self);
         }
     }
 

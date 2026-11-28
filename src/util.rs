@@ -1,6 +1,8 @@
 use std::ops::{Add, Div, Mul, Sub};
 
-use vello::{kurbo::{Point, Size, Vec2}, peniko::Color};
+use vello::{kurbo::{Point, Vec2}, peniko::Color};
+
+use crate::space::{Context, Contexted, Space};
 
 pub trait Lerp<T> {
     #[must_use]
@@ -18,9 +20,15 @@ impl<T> Lerp<T> for f64 where T: Lerpable {
 
 impl Lerpable for f64 {}
 impl Lerpable for Vec2 {}
+impl<T:Context> Lerpable for Contexted<Vec2,T> {}
 
 impl Lerp<Point> for f64 {
     fn lerp(self, from:Point, to:Point) -> Point {
+        self.lerp(from.to_vec2(), to.to_vec2()).to_point()
+    }
+}
+impl<T:Context> Lerp<Contexted<Point,T>> for f64 {
+    fn lerp(self, from:Contexted<Point,T>, to:Contexted<Point,T>) -> Contexted<Point,T> {
         self.lerp(from.to_vec2(), to.to_vec2()).to_point()
     }
 }
@@ -31,11 +39,13 @@ impl Lerp<Color> for f64 {
     }
 }
 
+#[allow(unused)]
 pub trait Remap: Sized {
     #[must_use]
     fn remap(self, from: (Self, Self), to: (Self, Self)) -> Self;
 }
 
+#[allow(unused)]
 pub trait Remapable: Lerp<Self> + Sub<Output=Self> + Copy + Div<Output=Self> + num_traits::float::Float {}
 
 impl<T> Remap for T where T: Remapable {
@@ -66,7 +76,18 @@ impl ComponentWise for Vec2 {
     }
 }
 
+impl<T:Context> ComponentWise for Contexted<Vec2, T> {
+    fn mul(self, value:Self) -> Self {
+        ComponentWise::mul(self.to_inner(), value.to_inner()).wrapped()
+    }
+
+    fn div(self, value:Self) -> Self {
+        ComponentWise::div(self.to_inner(), value.to_inner()).wrapped()
+    }
+}
+
 /// multiplicative lerp
+#[allow(unused)]
 pub trait Merp<T> {
     #[must_use]
     fn merp(self, from:T, to:T) -> T;

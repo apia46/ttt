@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use vello::kurbo::Vec2;
 use winit::{application::ApplicationHandler, error::EventLoopError, event::{MouseScrollDelta, WindowEvent}, event_loop::{ActiveEventLoop, EventLoop}, window::WindowId};
 
-use crate::Game;
+use crate::{Game, input::MouseInput};
 use crate::input;
 
 pub struct App {
@@ -34,7 +34,7 @@ impl ApplicationHandler for AppHandler {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
         let mut game = pollster::block_on(Game::new(event_loop));
-        game.state.render_state.camera.go_to_default_pos(&game.window);
+        game.state.camera.go_to_default_pos(&game.window);
         self.game = Some(game);
     }
 
@@ -55,7 +55,7 @@ impl ApplicationHandler for AppHandler {
                 input::keyboard_input(event, &mut game.state, &game.window);
             },
             (WindowEvent::CursorMoved { device_id:_, position }, Some(game)) => {
-                input::mouse_moved(game.window.point_to_screen(position), &mut game.state);
+                input::mouse_moved(game.window.point_to_screen(position), &mut game.state, &game.window);
             },
             (WindowEvent::MouseWheel { device_id:_, delta, phase:_ }, Some(game)) => {
                 input::mouse_scroll(match delta {
@@ -64,10 +64,10 @@ impl ApplicationHandler for AppHandler {
                 }, &mut game.state);
             },
             (WindowEvent::MouseInput { device_id:_, state, button }, Some(game)) => {
-                input::mouse_input(state, button, &mut game.state, &game.window);
+                input::mouse_input(MouseInput::new(state, button), &mut game.state, &game.window);
             },
             (WindowEvent::RedrawRequested, Some(game)) => {
-                game.window.render(|w| game.renderer.draw_scene(&game.state.render_state, &game.state.input_state, &game.state.game_state, w));
+                game.window.render(|w| game.renderer.draw_scene(&game.state.render_state, &game.state.input_state, &mut game.state.game_state, &game.state.camera, w));
             },
             _ => {},
         }
@@ -79,7 +79,7 @@ impl ApplicationHandler for AppHandler {
         let render_state = &mut game.state.render_state;
         if let Some(delta_time) = tick(&game.state.start_time, &mut render_state.previous_frame, &render_state.refresh_rate) {
             game.state.render_state.delta_time = delta_time;
-            game.state.process(&mut game.renderer, delta_time);
+            game.state.process(&mut game.renderer, delta_time, &game.window);
             game.window.request_redraw();
         }
     }
