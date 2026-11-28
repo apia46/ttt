@@ -2,7 +2,7 @@ use educe::Educe;
 use macros::parse_color;
 use vello::{kurbo::{Point, Size}, peniko::Color};
 
-use crate::{board::{BoardState, LayerState, Position, PositionError, Value}, button::simple::{NewSimpleButtonArgs, SimpleButton}, space::{Space, anchor::{Anchor, AnchorContext, BottomMiddle, BottomRight}}};
+use crate::{board::{BoardState, LayerState, Position, PositionError, Value}, button::{self, simple::{NewSimpleButtonArgs, SimpleButton}}, space::{Space, anchor::{Anchor, AnchorContext, BottomMiddle, BottomRight}}};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Player { X, O }
@@ -73,27 +73,34 @@ impl ExpandPrompt {
     }
 }
 
+const BUTTON_STYLE:button::simple::Style = button::simple::Style {
+    fill_color: parse_color!("#223344"),
+    hover_fill_color: parse_color!("#476685"),
+    border_color: parse_color!("#668899"),
+    text_color: parse_color!("#ffffff"),
+    font_size: 20.,
+};
+
 fn home_button() -> SimpleButton<AnchorContext<BottomRight>> {
     SimpleButton::new(NewSimpleButtonArgs {
         rect: Anchor::from_center_size(Point::new(-30., -30.).wrapped(), Size::new(40., 40.).wrapped()),
-        fill_color: parse_color!("#223344"), border_color: parse_color!("#668899"), text_color: parse_color!("#ffffff"),
-        text: "Home".into(), font_size: 20., disabled: false,
+        text: "Home".into(), style: &BUTTON_STYLE, disabled: false,
     })
 }
 
 fn yes_button() -> SimpleButton<AnchorContext<BottomMiddle>> {
+    const STYLE:button::simple::Style = button::simple::Style { border_color: parse_color!("#66997a"), ..BUTTON_STYLE };
     SimpleButton::new(NewSimpleButtonArgs {
-        rect: Anchor::from_center_size(Point::new(-50., -30.).wrapped(), Size::new(50., 20.).wrapped()),
-        fill_color: parse_color!("#223344"), border_color: parse_color!("#66997a"), text_color: parse_color!("#ffffff"),
-        text: "Yes".into(), font_size: 20., disabled: false,
+        rect: Anchor::from_center_size(Point::new(-50., -60.).wrapped(), Size::new(50., 20.).wrapped()),
+        text: "Yes".into(), style: &STYLE, disabled: false,
     })
 }
 
 fn no_button() -> SimpleButton<AnchorContext<BottomMiddle>> {
+    const STYLE:button::simple::Style = button::simple::Style { border_color: parse_color!("#854747"), ..BUTTON_STYLE };
     SimpleButton::new(NewSimpleButtonArgs {
-        rect: Anchor::from_center_size(Point::new(50., -30.).wrapped(), Size::new(50., 20.).wrapped()),
-        fill_color: parse_color!("#223344"), border_color: parse_color!("#854747"), text_color: parse_color!("#ffffff"),
-        text: "No".into(), font_size: 20., disabled: false,
+        rect: Anchor::from_center_size(Point::new(50., -60.).wrapped(), Size::new(50., 20.).wrapped()),
+        text: "No".into(), style: &STYLE, disabled: false,
     })
 }
 

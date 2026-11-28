@@ -96,10 +96,10 @@ impl Renderer {
             },
             GameStateState::ExpandPrompt(ref mut prompt) => {
                 self.draw_rect(draw::DrawRectArgs {
-                    rect: Anchor::<Rect, BottomMiddle>::from_center_size(Point::new(0., -50.).wrapped(), Size::new(300., 100.).wrapped()),
+                    rect: Anchor::<Rect, BottomMiddle>::from_center_size(Point::new(0., -80.).wrapped(), Size::new(300., 100.).wrapped()),
                     style: draw::Style { stroke: Some((8., parse_color!("#668899"))), fill: Some(parse_color!("#223344")) }
                 }, window);
-                self.draw_text_immediate(Anchor::<Point, BottomMiddle>::new(0., -70.), draw::BuildTextArgs {
+                self.draw_text_immediate(Anchor::<Point, BottomMiddle>::new(0., -100.), draw::BuildTextArgs {
                     text: "Expand?", font_size: 20., color: Color::WHITE, center: true
                 }, window);
                 prompt.yes_button.draw(self, window);
